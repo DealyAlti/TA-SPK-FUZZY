@@ -44,7 +44,7 @@
 
             <!-- Prediksi -->
             <li>
-                <a href="#">
+                <a href="{{ route('prediksi.index') }}">
                     <i class="fa fa-line-chart"></i>
                     <span> Prediksi</span>
                 </a>

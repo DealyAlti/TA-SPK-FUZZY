@@ -22,25 +22,31 @@
 
                     {{-- DROPDOWN PRODUK --}}
                     <div class="col-md-4">
-                        <select id="produk" class="form-control">
-                            <option value="">-- pilih produk --</option>
-                            @foreach ($produk as $p)
-                                <option value="{{ $p->id_produk }}">{{ $p->nama_produk }}</option>
-                            @endforeach
-                        </select>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <select id="produk" class="form-control select-produk">
+                                <option value="">Pilih Produk</option>
+                                @foreach ($produk as $p)
+                                    <option value="{{ $p->id_produk }}">{{ $p->nama_produk }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
+
 
                     {{-- TOMBOL TAMBAH DATA TRAINING HARIAN --}}
                     <div class="col-md-4">
-                        <button id="btn-add" class="btn btn-success btn-block" disabled
+                        <button id="btn-add"
+                                class="btn btn-danger btn-block btn-aksi"
+                                disabled
                                 onclick="addForm('{{ route('training.store') }}')">
                             <i class="fa fa-plus-circle"></i> Tambah Data Training (Harian)
                         </button>
                     </div>
 
-                    {{-- TOMBOL PANDUAN IMPORT & UPLOAD --}}
                     <div class="col-md-4">
-                        <button id="btn-import-guide" class="btn btn-warning btn-block" disabled>
+                        <button id="btn-import-guide"
+                                class="btn btn-warning btn-block btn-aksi"
+                                disabled>
                             <i class="fa fa-info-circle"></i> Panduan Import & Upload
                         </button>
                     </div>
@@ -159,6 +165,38 @@
 @endsection
 
 @push('scripts')
+@push('css')
+<style>
+    /* dropdown produk */
+    .select-produk {
+        height: 48px;
+        font-size: 15px;
+        padding: 8px 14px;
+        border-radius: 10px;
+    }
+
+    /* tombol merah & oranye */
+    .btn-aksi {
+        height: 48px;
+        font-size: 15px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+
+    /* supaya row rata tengah (opsional) */
+    @media (min-width: 768px) {
+        .row.row-pilih-produk {
+            display: flex;
+            align-items: center;
+        }
+    }
+</style>
+@endpush
+
+
 <script>
     let table = null;
     let selectedProduct = null;

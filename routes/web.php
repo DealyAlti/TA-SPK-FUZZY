@@ -6,6 +6,7 @@ use App\Http\Controllers\{
     ProdukController,
     UserController,
     DataTrainingController,
+    HasilPrediksiController
 };
 use Illuminate\Support\Facades\Route;
 
@@ -84,5 +85,8 @@ Route::middleware('auth')->group(function () {
     Route::get('training/{id_produk}/export-template', [DataTrainingController::class, 'exportTemplate'])
     ->name('training.template');
     Route::post('training/import', [DataTrainingController::class, 'import'])->name('training.import');
+
+    Route::get('/prediksi', [HasilPrediksiController::class, 'index'])->name('prediksi.index');
+    Route::post('/prediksi/hitung', [HasilPrediksiController::class, 'hitung'])->name('prediksi.hitung');
 });
 
