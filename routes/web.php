@@ -71,20 +71,18 @@ Route::middleware('auth')->group(function () {
     // DATA TRAINING
     Route::get('/data-training', [DataTrainingController::class, 'index'])
         ->name('training.index');
-
     Route::get('/data-training/{id_produk}/data', [DataTrainingController::class, 'data'])
         ->name('training.data');
-
     Route::post('/data-training', [DataTrainingController::class, 'store'])
         ->name('training.store');
-
     Route::get('/data-training/{id}', [DataTrainingController::class, 'show'])
         ->name('training.show');
-
     Route::put('/data-training/{id}', [DataTrainingController::class, 'update'])
         ->name('training.update');
-
     Route::delete('/data-training/{id}', [DataTrainingController::class, 'destroy'])
         ->name('training.destroy');
+    Route::get('training/{id_produk}/export-template', [DataTrainingController::class, 'exportTemplate'])
+    ->name('training.template');
+    Route::post('training/import', [DataTrainingController::class, 'import'])->name('training.import');
 });
 

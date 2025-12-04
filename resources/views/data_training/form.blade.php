@@ -4,13 +4,13 @@
             @csrf
             @method('post')
 
+            <input type="hidden" name="id_produk" id="id_produk">
+
             <div class="modal-header">
                 <h4 class="modal-title"></h4>
             </div>
 
             <div class="modal-body">
-
-                <input type="hidden" name="id_produk" id="id_produk">
 
                 <div class="form-group">
                     <label>Tanggal</label>
@@ -18,29 +18,25 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Penjualan</label>
-                    <input type="number" name="penjualan" class="form-control" value="0" min="0">
+                    <label>Penjualan (Admin)</label>
+                    <input type="number" name="penjualan" class="form-control" min="0" value="0">
                 </div>
 
                 <div class="form-group">
-                    <label>Stok Barang Jadi</label>
-                    <input type="number" name="stok_barang_jadi" class="form-control" value="0" min="0" required>
+                    <label>Hasil Produksi (Kepala Produksi)</label>
+                    <input type="number" name="hasil_produksi" class="form-control" min="0" value="0">
                 </div>
 
-                <div class="form-group">
-                    <label>Hasil Produksi</label>
-                    <input type="number" name="hasil_produksi" class="form-control" value="0" min="0">
-                </div>
-
-
+                <p class="text-muted">
+                    * Stok akhir akan dihitung otomatis oleh sistem.
+                </p>
             </div>
 
             <div class="modal-footer">
-                <button class="btn btn-primary" type="submit">
-                    <i class="fa fa-save"></i> Simpan
-                </button>
+                <button class="btn btn-primary"><i class="fa fa-save"></i> Simpan</button>
                 <button type="button" class="btn btn-warning" data-dismiss="modal">Batal</button>
             </div>
+
         </form>
     </div>
 </div>
