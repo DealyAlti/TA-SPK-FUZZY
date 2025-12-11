@@ -86,7 +86,10 @@ Route::middleware('auth')->group(function () {
     ->name('training.template');
     Route::post('training/import', [DataTrainingController::class, 'import'])->name('training.import');
 
-    Route::get('/prediksi', [HasilPrediksiController::class, 'index'])->name('prediksi.index');
-    Route::post('/prediksi/hitung', [HasilPrediksiController::class, 'hitung'])->name('prediksi.hitung');
+    Route::get('/prediksi',          [HasilPrediksiController::class, 'index'])->name('prediksi.index');
+    Route::post('/prediksi/hitung',  [HasilPrediksiController::class, 'hitung'])->name('prediksi.hitung');
+
+    Route::get('/prediksi/hasil',    [HasilPrediksiController::class, 'hasil'])->name('prediksi.hasil');
+    Route::get('/prediksi/perhitungan', [HasilPrediksiController::class, 'detail'])->name('prediksi.detail');
 });
 
