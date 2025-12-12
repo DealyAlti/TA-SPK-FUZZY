@@ -25,5 +25,11 @@ class Produk extends Model
         return $this->hasMany(DataTraining::class, 'id_produk');
     }
 
+    public function penjualan()
+    {
+        return $this->hasMany(Penjualan::class, 'id_produk', 'id_produk');
+    }
+
+
 
 }

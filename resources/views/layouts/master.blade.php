@@ -257,6 +257,38 @@
             border-left: 3px solid var(--primary-red);
         }
 
+        /* ===== OVERRIDE ACTIVE MENU: SOFT (putih + garis kiri) ===== */
+        .sidebar-menu > li.active > a,
+        .sidebar-menu > li.menu-open > a {
+            background: #fff !important;
+            color: var(--primary-red) !important;
+            box-shadow: none !important;
+            transform: none !important;
+
+            border-left: 4px solid var(--primary-red) !important;
+        }
+
+        /* icon ikut merah */
+        .sidebar-menu > li.active > a > .fa,
+        .sidebar-menu > li.menu-open > a > .fa {
+            color: var(--primary-red) !important;
+        }
+
+        /* efek garis kiri (yang ::before kamu) matikan biar nggak dobel */
+        .sidebar-menu > li.active > a::before,
+        .sidebar-menu > li.menu-open > a::before {
+            transform: none !important;
+            background: transparent !important;
+        }
+
+        /* hover tetap soft */
+        .sidebar-menu > li > a:hover {
+            background: linear-gradient(135deg, var(--light-red) 0%, rgba(254,226,226,0.5) 100%) !important;
+            color: var(--text-red) !important;
+            transform: translateX(5px);
+            box-shadow: var(--shadow-sm);
+        }
+
         /* ========================================
            📄 CONTENT WRAPPER - Clean Layout
         ======================================== */
@@ -926,6 +958,31 @@
         .modal .form-group {
             margin-bottom: 20px !important;
         }
+
+        /* ===========================
+        FIX MODAL SHIFT KANAN-KIRI
+        (Bootstrap 3 + AdminLTE 2)
+        =========================== */
+        html {
+            overflow-y: scroll;
+        }
+
+        body.modal-open {
+            padding-right: 0 !important;
+        }
+
+        .modal-open .wrapper,
+        .modal-open .content-wrapper,
+        .modal-open .main-header,
+        .modal-open .main-sidebar,
+        .modal-open .main-footer {
+            padding-right: 0 !important;
+        }
+
+        .modal {
+            overflow-y: auto;
+        }
+
 
 
     </style>

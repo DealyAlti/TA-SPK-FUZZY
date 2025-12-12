@@ -4,11 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\DataTraining;
 use App\Models\Produk;
+use App\Models\Penjualan;
+use App\Models\HasilPrediksi;
+use App\Models\StokHarian;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\DataTrainingTemplateExport;
+use Illuminate\Support\Facades\DB;
 
 class DataTrainingController extends Controller
 {
@@ -349,5 +353,71 @@ class DataTrainingController extends Controller
         }
 
         return null;
+    }
+
+    public function generateHarian(Request $request)
+    {
+        $request->validate([
+            'tanggal' => 'required|date',
+        ]);
+
+        $tanggal = $request->tanggal;
+
+        DB::transaction(function () use ($tanggal) {
+
+            // loop semua produk (atau kalau mau, bisa filter id_produk)
+            $produkList = Produk::orderBy('nama_produk')->get();
+
+            foreach ($produkList as $prd) {
+
+                // 1) total penjualan hari itu
+                $totalJual = Penjualan::where('tanggal', $tanggal)
+                    ->where('id_produk', $prd->id_produk)
+                    ->sum('jumlah'); // kalau gak ada, hasilnya 0
+
+                // 2) ambil produksi aktual hari itu (kalau ada)
+                // kalau ada banyak prediksi dalam 1 hari, ambil yang terbaru
+                $prediksi = HasilPrediksi::where('tanggal', $tanggal)
+                    ->where('id_produk', $prd->id_produk)
+                    ->orderBy('id_hasil_prediksi', 'desc')
+                    ->first();
+
+                $waktuProduksi = $prediksi ? (float)$prediksi->waktu_produksi : 0;
+                $kapasitas     = $prediksi ? (float)$prediksi->kapasitas_produksi : 0;
+
+                // hasil produksi = hasil_aktual kalau ada, kalau tidak 0 (karena kamu mau sementara 0)
+                $hasilProduksi = 0;
+                if ($prediksi && !is_null($prediksi->hasil_aktual)) {
+                    $hasilProduksi = (float)$prediksi->hasil_aktual;
+                }
+
+                // 3) stok barang jadi hari itu ambil dari stok_harian (stok akhir)
+                $stokAkhir = StokHarian::where('tanggal', $tanggal)
+                    ->where('id_produk', $prd->id_produk)
+                    ->value('stok_akhir');
+
+                // fallback kalau belum ada record stok harian
+                if (is_null($stokAkhir)) {
+                    $stokAkhir = (float)$prd->stok;
+                }
+
+                // 4) simpan ke data training
+                DataTraining::updateOrCreate(
+                    [
+                        'id_produk' => $prd->id_produk,
+                        'tanggal'   => $tanggal,
+                    ],
+                    [
+                        'penjualan'          => (float)$totalJual,
+                        'waktu_produksi'     => (float)$waktuProduksi,
+                        'stok_barang_jadi'   => (float)$stokAkhir,
+                        'kapasitas_produksi' => (float)$kapasitas,
+                        'hasil_produksi'     => (float)$hasilProduksi,
+                    ]
+                );
+            }
+        });
+
+        return back()->with('success', 'Data training harian berhasil dibuat untuk tanggal ' . $tanggal);
     }
 }

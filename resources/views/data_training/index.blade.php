@@ -10,7 +10,46 @@
 @section('content')
 
 <div class="row">
+    <div class="col-lg-12">
+        <div class="box">
+            <div class="box-header">
+                <h4>Generate Data Training Harian</h4>
+            </div>
+            <div class="box-body">
 
+                @if(session('success'))
+                    <div class="alert alert-success">
+                        {{ session('success') }}
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('training.generateHarian') }}" class="form-inline">
+                    @csrf
+
+                    <div class="form-group">
+                        <label>Tanggal</label>
+                        <input type="date"
+                               name="tanggal"
+                               class="form-control"
+                               value="{{ date('Y-m-d') }}"
+                               required>
+                    </div>
+
+                    <button class="btn btn-danger" style="margin-left:10px;">
+                        <i class="fa fa-refresh"></i> Generate Data Training
+                    </button>
+                </form>
+
+                <small class="text-muted">
+                    Data diambil otomatis dari penjualan, produksi aktual, dan stok harian.
+                </small>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
     {{-- ========== PILIH PRODUK ========== --}}
     <div class="col-lg-12">
         <div class="box">

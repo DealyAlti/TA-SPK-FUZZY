@@ -4,8 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Produk;
 use App\Models\DataTraining;
+use App\Models\Penjualan;
 use App\Models\HasilPrediksi;
 use Illuminate\Http\Request;
+use App\Models\StokHarian;
+use Illuminate\Support\Facades\DB;
+
 
 class HasilPrediksiController extends Controller
 {
@@ -224,4 +228,68 @@ class HasilPrediksiController extends Controller
         if ($x >= $max) return 1.0;
         return ($x - $min) / max($max - $min, 0.000001);
     }
+
+    public function riwayat(Request $request)
+    {
+        $query = HasilPrediksi::with('produk')
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('id_hasil_prediksi', 'desc');
+
+        if ($request->filled('id_produk')) {
+            $query->where('id_produk', $request->id_produk);
+        }
+
+        $riwayat = $query->paginate(15)->withQueryString();
+        $produk  = Produk::orderBy('nama_produk')->get();
+
+        return view('prediksi.riwayat', compact('riwayat', 'produk'));
+    }
+
+    public function formAktual($id)
+    {
+        $prediksi = HasilPrediksi::with('produk')->findOrFail($id);
+        return view('prediksi.aktual', compact('prediksi'));
+    }
+
+    /**
+     * SIMPAN HASIL AKTUAL + OTOMATIS TAMBAH STOK
+     */
+    public function updateAktual(Request $request, $id)
+    {
+        $request->validate([
+            'hasil_aktual' => 'required|numeric|min:0',
+        ]);
+
+        DB::transaction(function () use ($request, $id) {
+
+            $prediksi = HasilPrediksi::with('produk')->lockForUpdate()->findOrFail($id);
+
+            // simpan aktual (ini yang akan jadi training.hasil_produksi)
+            $prediksi->hasil_aktual = $request->hasil_aktual;
+            $prediksi->save();
+
+            // tambah stok produk langsung
+            $produk = Produk::lockForUpdate()->where('id_produk', $prediksi->id_produk)->first();
+            $stokSebelum = $produk->stok;
+
+            $produk->stok = $produk->stok + $request->hasil_aktual;
+            $produk->save();
+
+            // snapshot stok harian pada tanggal prediksi
+            StokHarian::updateOrCreate(
+                ['id_produk' => $produk->id_produk, 'tanggal' => $prediksi->tanggal],
+                [
+                    'stok_awal'  => StokHarian::where('id_produk',$produk->id_produk)
+                                    ->where('tanggal',$prediksi->tanggal)
+                                    ->value('stok_awal') ?? $stokSebelum,
+                    'stok_akhir' => $produk->stok,
+                ]
+            );
+        });
+
+        return back()->with('success', 'Hasil aktual disimpan & stok otomatis bertambah');
+    }
+
+
+
 }

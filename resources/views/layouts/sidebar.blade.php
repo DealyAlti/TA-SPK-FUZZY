@@ -5,7 +5,7 @@
         <ul class="sidebar-menu" data-widget="tree">
 
             <!-- DASHBOARD -->
-            <li>
+            <li class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
                 <a href="{{ route('dashboard') }}">
                     <i class="fa fa-dashboard"></i>
                     <span> Dashboard</span>
@@ -16,7 +16,7 @@
 
             <!-- Kategori (hanya Owner / Level 0) -->
             @if (auth()->user()->level == 0)
-                <li>
+                <li class="{{ request()->routeIs('kategori.*') ? 'active' : '' }}">
                     <a href="{{ route('kategori.index') }}">
                         <i class="fa fa-list"></i>
                         <span> Kategori</span>
@@ -25,7 +25,7 @@
             @endif
 
             <!-- Produk (semua level) -->
-            <li>
+            <li class="{{ request()->routeIs('produk.*') ? 'active' : '' }}">
                 <a href="{{ route('produk.index') }}">
                     <i class="fa fa-shopping-bag"></i>
                     <span> Produk</span>
@@ -33,7 +33,7 @@
             </li>
 
             <!-- DATA TRAINING -->
-            <li>
+            <li class="{{ request()->routeIs('training.*') ? 'active' : '' }}">
                 <a href="{{ route('training.index') }}">
                     <i class="fa fa-database"></i>
                     <span> Data Training</span>
@@ -42,24 +42,25 @@
 
             <li class="header">FUZZY TSUKAMOTO</li>
 
-            <!-- Prediksi -->
-            <li>
+            <!-- Prediksi (SOFT ACTIVE) -->
+            <li class="{{ request()->routeIs('prediksi.index','prediksi.hitung') ? 'active-soft' : '' }}">
                 <a href="{{ route('prediksi.index') }}">
                     <i class="fa fa-line-chart"></i>
                     <span> Prediksi</span>
                 </a>
             </li>
 
-            <!-- Hasil -->
-            <li>
-                <a href="#">
+            <!-- Hasil (SOFT ACTIVE) -->
+            <li class="{{ request()->routeIs('prediksi.hasil','prediksi.detail','prediksi.riwayat*') ? 'active-soft' : '' }}">
+                <a href="{{ route('prediksi.riwayat') }}">
                     <i class="fa fa-check-circle"></i>
                     <span> Hasil</span>
                 </a>
             </li>
 
-            <li>
-                <a href="#">
+            <!-- Penjualan (NORMAL ACTIVE) -->
+            <li class="{{ request()->routeIs('penjualan.*') ? 'active' : '' }}">
+                <a href="{{ route('penjualan.riwayat') }}">
                     <i class="fa fa-money"></i>
                     <span> Penjualan</span>
                 </a>
@@ -68,7 +69,7 @@
             <!-- Pengguna (hanya Owner) -->
             @if (auth()->user()->level == 0)
                 <li class="header">USER</li>
-                <li>
+                <li class="{{ request()->routeIs('user.*') ? 'active' : '' }}">
                     <a href="{{ route('user.index') }}">
                         <i class="fa fa-user"></i>
                         <span> Pengguna</span>

@@ -6,7 +6,8 @@ use App\Http\Controllers\{
     ProdukController,
     UserController,
     DataTrainingController,
-    HasilPrediksiController
+    HasilPrediksiController,
+    PenjualanController
 };
 use Illuminate\Support\Facades\Route;
 
@@ -85,11 +86,30 @@ Route::middleware('auth')->group(function () {
     Route::get('training/{id_produk}/export-template', [DataTrainingController::class, 'exportTemplate'])
     ->name('training.template');
     Route::post('training/import', [DataTrainingController::class, 'import'])->name('training.import');
+    Route::post('/data-training/generate-harian', [DataTrainingController::class, 'generateHarian'])
+    ->name('training.generateHarian');
 
-    Route::get('/prediksi',          [HasilPrediksiController::class, 'index'])->name('prediksi.index');
-    Route::post('/prediksi/hitung',  [HasilPrediksiController::class, 'hitung'])->name('prediksi.hitung');
 
-    Route::get('/prediksi/hasil',    [HasilPrediksiController::class, 'hasil'])->name('prediksi.hasil');
+    // PREDIKSI
+    Route::get('/prediksi', [HasilPrediksiController::class, 'index'])->name('prediksi.index');
+    Route::post('/prediksi/hitung', [HasilPrediksiController::class, 'hitung'])->name('prediksi.hitung');
+    Route::get('/prediksi/hasil', [HasilPrediksiController::class, 'hasil'])->name('prediksi.hasil');
     Route::get('/prediksi/perhitungan', [HasilPrediksiController::class, 'detail'])->name('prediksi.detail');
+
+    // ================== RIWAYAT PREDIKSI ==================
+    Route::get('/prediksi/riwayat', [HasilPrediksiController::class, 'riwayat'])->name('prediksi.riwayat');
+    // form input aktual (halaman sendiri)
+    Route::get('/prediksi/riwayat/{id}/aktual', [HasilPrediksiController::class, 'formAktual'])->name('prediksi.riwayat.formAktual');
+    // simpan aktual + otomatis tambah stok
+    Route::post('/prediksi/riwayat/{id}/aktual', [HasilPrediksiController::class, 'updateAktual'])->name('prediksi.riwayat.aktual');
+
+    Route::get('/penjualan/riwayat', [PenjualanController::class, 'riwayat'])
+        ->name('penjualan.riwayat');
+
+    Route::get('/penjualan', [PenjualanController::class, 'index'])
+        ->name('penjualan.index');
+
+    Route::post('/penjualan', [PenjualanController::class, 'store'])
+        ->name('penjualan.store');
 });
 
