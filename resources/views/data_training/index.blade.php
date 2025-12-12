@@ -16,6 +16,11 @@
                 <h4>Generate Data Training Harian</h4>
             </div>
             <div class="box-body">
+                @if(session('info'))
+                    <div class="alert alert-info">
+                        {{ session('info') }}
+                    </div>
+                @endif
 
                 @if(session('success'))
                     <div class="alert alert-success">

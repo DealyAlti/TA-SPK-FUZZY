@@ -363,61 +363,81 @@ class DataTrainingController extends Controller
 
         $tanggal = $request->tanggal;
 
-        DB::transaction(function () use ($tanggal) {
+        $generated = [];
+        $skipped   = [];
 
-            // loop semua produk (atau kalau mau, bisa filter id_produk)
+        DB::transaction(function () use ($tanggal, &$generated, &$skipped) {
+
             $produkList = Produk::orderBy('nama_produk')->get();
 
             foreach ($produkList as $prd) {
 
-                // 1) total penjualan hari itu
-                $totalJual = Penjualan::where('tanggal', $tanggal)
-                    ->where('id_produk', $prd->id_produk)
-                    ->sum('jumlah'); // kalau gak ada, hasilnya 0
+            // 1️⃣ sudah ada data training → SKIP
+            $exists = DataTraining::where('id_produk', $prd->id_produk)
+                ->whereDate('tanggal', $tanggal)
+                ->exists();
 
-                // 2) ambil produksi aktual hari itu (kalau ada)
-                // kalau ada banyak prediksi dalam 1 hari, ambil yang terbaru
-                $prediksi = HasilPrediksi::where('tanggal', $tanggal)
-                    ->where('id_produk', $prd->id_produk)
-                    ->orderBy('id_hasil_prediksi', 'desc')
-                    ->first();
-
-                $waktuProduksi = $prediksi ? (float)$prediksi->waktu_produksi : 0;
-                $kapasitas     = $prediksi ? (float)$prediksi->kapasitas_produksi : 0;
-
-                // hasil produksi = hasil_aktual kalau ada, kalau tidak 0 (karena kamu mau sementara 0)
-                $hasilProduksi = 0;
-                if ($prediksi && !is_null($prediksi->hasil_aktual)) {
-                    $hasilProduksi = (float)$prediksi->hasil_aktual;
-                }
-
-                // 3) stok barang jadi hari itu ambil dari stok_harian (stok akhir)
-                $stokAkhir = StokHarian::where('tanggal', $tanggal)
-                    ->where('id_produk', $prd->id_produk)
-                    ->value('stok_akhir');
-
-                // fallback kalau belum ada record stok harian
-                if (is_null($stokAkhir)) {
-                    $stokAkhir = (float)$prd->stok;
-                }
-
-                // 4) simpan ke data training
-                DataTraining::updateOrCreate(
-                    [
-                        'id_produk' => $prd->id_produk,
-                        'tanggal'   => $tanggal,
-                    ],
-                    [
-                        'penjualan'          => (float)$totalJual,
-                        'waktu_produksi'     => (float)$waktuProduksi,
-                        'stok_barang_jadi'   => (float)$stokAkhir,
-                        'kapasitas_produksi' => (float)$kapasitas,
-                        'hasil_produksi'     => (float)$hasilProduksi,
-                    ]
-                );
+            if ($exists) {
+                $skipped[] = $prd->nama_produk;
+                continue;
             }
+
+            // 2️⃣ ambil data sumber
+            $totalJual = Penjualan::whereDate('tanggal', $tanggal)
+                ->where('id_produk', $prd->id_produk)
+                ->sum('jumlah');
+
+            $prediksi = HasilPrediksi::whereDate('tanggal', $tanggal)
+                ->where('id_produk', $prd->id_produk)
+                ->orderBy('id_hasil_prediksi', 'desc')
+                ->first();
+
+            $hasilProduksi = ($prediksi && !is_null($prediksi->hasil_aktual))
+                ? (float) $prediksi->hasil_aktual
+                : 0;
+
+            $stokAkhir = StokHarian::whereDate('tanggal', $tanggal)
+                ->where('id_produk', $prd->id_produk)
+                ->value('stok_akhir');
+
+            // 3️⃣ 🔒 VALIDASI UTAMA
+            // Kalau SEMUANYA kosong / nol → JANGAN BUAT
+            if ($totalJual == 0 && $hasilProduksi == 0 && is_null($stokAkhir)) {
+                continue;
+            }
+
+            // fallback stok
+            if (is_null($stokAkhir)) {
+                $stokAkhir = (float) $prd->stok;
+            }
+
+            // 4️⃣ SIMPAN
+            DataTraining::create([
+                'id_produk'        => $prd->id_produk,
+                'tanggal'          => $tanggal,
+                'penjualan'        => (float)$totalJual,
+                'hasil_produksi'   => (float)$hasilProduksi,
+                'stok_barang_jadi' => (float)$stokAkhir,
+            ]);
+
+            $generated[] = $prd->nama_produk;
+        }
+
         });
 
-        return back()->with('success', 'Data training harian berhasil dibuat untuk tanggal ' . $tanggal);
+        // ✅ NOTIFIKASI
+        if (count($generated) === 0) {
+            return back()->with('info', 'Data training tanggal '.$tanggal.' sudah di-generate untuk semua produk.');
+        }
+
+        $msg = 'Generate selesai untuk tanggal '.$tanggal.'. '
+            . 'Berhasil: '.count($generated).' produk';
+
+        if (count($skipped) > 0) {
+            $msg .= ' | Dilewati (sudah ada): '.count($skipped).' produk';
+        }
+
+        return back()->with('success', $msg);
     }
+
 }

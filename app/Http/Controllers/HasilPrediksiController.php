@@ -33,6 +33,18 @@ class HasilPrediksiController extends Controller
             'kapasitas_produksi' => 'required|numeric|min:0',
         ]);
 
+        $exists = HasilPrediksi::where('id_produk', $request->id_produk)
+            ->whereDate('tanggal', $request->tanggal)
+            ->exists();
+
+        if ($exists) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors([
+                    'tanggal' => 'Prediksi untuk produk ini pada tanggal tersebut sudah pernah dibuat.'
+                ]);
+        }
+
         $produk   = Produk::with('kategori')->findOrFail($request->id_produk);
         $kategori = $produk->kategori;
 
@@ -287,7 +299,8 @@ class HasilPrediksiController extends Controller
             );
         });
 
-        return back()->with('success', 'Hasil aktual disimpan & stok otomatis bertambah');
+        return redirect()->route('prediksi.riwayat')
+            ->with('success', 'Hasil aktual disimpan & stok otomatis bertambah');
     }
 
 

@@ -73,11 +73,18 @@
                                 @endif
                             </td>
                             <td>
-                                <a class="btn btn-xs btn-primary"
-                                   href="{{ route('prediksi.riwayat.formAktual', $r->id_hasil_prediksi) }}">
-                                   <i class="fa fa-edit"></i> Input Aktual
-                                </a>
+                                @if(is_null($r->hasil_aktual))
+                                    <a class="btn btn-xs btn-primary"
+                                    href="{{ route('prediksi.riwayat.formAktual', $r->id_hasil_prediksi) }}">
+                                    <i class="fa fa-edit"></i> Input Aktual
+                                    </a>
+                                @else
+                                    <span class="label label-success">
+                                        <i class="fa fa-check"></i> Sudah Diinput
+                                    </span>
+                                @endif
                             </td>
+
                         </tr>
                         @empty
                         <tr>
