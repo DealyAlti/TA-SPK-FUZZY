@@ -7,6 +7,7 @@ use App\Models\Penjualan;
 use App\Models\StokHarian;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class PenjualanController extends Controller
 {
@@ -106,31 +107,49 @@ class PenjualanController extends Controller
         */
     public function riwayat(Request $request)
     {
-        $query = Penjualan::query()
+        // summary per tanggal
+        $query = DB::table('penjualan')
+            ->selectRaw('DATE(tanggal) as tanggal, SUM(jumlah) as total_terjual, COUNT(*) as total_item')
+            ->groupBy(DB::raw('DATE(tanggal)'))
+            ->orderBy(DB::raw('DATE(tanggal)'), 'desc');
+
+        // filter tanggal (opsional)
+        if ($request->filled('from')) {
+            $query->whereDate('tanggal', '>=', $request->from);
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('tanggal', '<=', $request->to);
+        }
+
+        $riwayat = $query->paginate(15)->appends($request->query());
+
+        return view('penjualan.riwayat', compact('riwayat'));
+    }
+
+    public function detail($tanggal)
+    {
+        // amankan format tanggal (YYYY-MM-DD)
+        try {
+            $tanggal = Carbon::parse($tanggal)->format('Y-m-d');
+        } catch (\Exception $e) {
+            abort(404);
+        }
+
+        $list = Penjualan::query()
             ->with('produk')
             ->leftJoin('stok_harian as sh', function ($join) {
                 $join->on('sh.id_produk', '=', 'penjualan.id_produk')
                     ->on('sh.tanggal',  '=', 'penjualan.tanggal');
             })
             ->select('penjualan.*', 'sh.stok_akhir as stok_saat_itu')
-            ->orderBy('penjualan.tanggal', 'desc')
-            ->orderBy('penjualan.id_penjualan', 'desc');
+            ->whereDate('penjualan.tanggal', $tanggal)
+            ->orderBy('penjualan.id_penjualan', 'asc')
+            ->get();
 
-        if ($request->filled('id_produk')) {
-            $query->where('penjualan.id_produk', $request->id_produk);
-        }
-
-        if ($request->filled('from')) {
-            $query->whereDate('penjualan.tanggal', '>=', $request->from);
-        }
-        if ($request->filled('to')) {
-            $query->whereDate('penjualan.tanggal', '<=', $request->to);
-        }
-
-        $riwayat = $query->paginate(15)->appends($request->query());
-        $produk  = Produk::orderBy('nama_produk')->get();
-
-        return view('penjualan.riwayat', compact('riwayat', 'produk'));
+        return view('penjualan.detail', [
+            'tanggal' => $tanggal,
+            'list'    => $list,
+        ]);
     }
 
 }

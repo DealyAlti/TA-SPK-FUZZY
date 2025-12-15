@@ -60,7 +60,7 @@
 
                 {{-- ================== TOMBOL ================== --}}
                 <div class="btn-wrap">
-                    <a href="{{ route('prediksi.detail') }}" class="btn btn-danger btn-hasil">
+                    <a href="{{ route('prediksi.detail', ['from' => 'hasil']) }}" class="btn btn-danger btn-hasil">
                         <i class="fa fa-search"></i> Lihat Perhitungan Lengkap
                     </a>
 

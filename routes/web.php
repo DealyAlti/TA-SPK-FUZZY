@@ -95,6 +95,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/prediksi/hitung', [HasilPrediksiController::class, 'hitung'])->name('prediksi.hitung');
     Route::get('/prediksi/hasil', [HasilPrediksiController::class, 'hasil'])->name('prediksi.hasil');
     Route::get('/prediksi/perhitungan', [HasilPrediksiController::class, 'detail'])->name('prediksi.detail');
+    Route::get('/prediksi/perhitungan/{id}', [HasilPrediksiController::class, 'detailById'])
+        ->name('prediksi.detailById');
 
     // ================== RIWAYAT PREDIKSI ==================
     Route::get('/prediksi/riwayat', [HasilPrediksiController::class, 'riwayat'])->name('prediksi.riwayat');
@@ -103,13 +105,10 @@ Route::middleware('auth')->group(function () {
     // simpan aktual + otomatis tambah stok
     Route::post('/prediksi/riwayat/{id}/aktual', [HasilPrediksiController::class, 'updateAktual'])->name('prediksi.riwayat.aktual');
 
-    Route::get('/penjualan/riwayat', [PenjualanController::class, 'riwayat'])
-        ->name('penjualan.riwayat');
+    Route::get('/penjualan/riwayat', [PenjualanController::class, 'riwayat'])->name('penjualan.riwayat');
+    Route::get('/penjualan/detail/{tanggal}', [PenjualanController::class, 'detail'])->name('penjualan.detail');
+    Route::get('/penjualan', [PenjualanController::class, 'index'])->name('penjualan.index');
+    Route::post('/penjualan', [PenjualanController::class, 'store'])->name('penjualan.store');
 
-    Route::get('/penjualan', [PenjualanController::class, 'index'])
-        ->name('penjualan.index');
-
-    Route::post('/penjualan', [PenjualanController::class, 'store'])
-        ->name('penjualan.store');
 });
 

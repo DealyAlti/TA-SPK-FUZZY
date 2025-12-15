@@ -73,10 +73,14 @@
                                 @endif
                             </td>
                             <td>
+                                <a class="btn btn-xs btn-info"
+                                href="{{ route('prediksi.detailById', ['id' => $r->id_hasil_prediksi, 'from' => 'riwayat']) }}">
+                                    <i class="fa fa-calculator"></i> Perhitungan
+                                </a>
                                 @if(is_null($r->hasil_aktual))
                                     <a class="btn btn-xs btn-primary"
                                     href="{{ route('prediksi.riwayat.formAktual', $r->id_hasil_prediksi) }}">
-                                    <i class="fa fa-edit"></i> Input Aktual
+                                        <i class="fa fa-edit"></i> Input Aktual
                                     </a>
                                 @else
                                     <span class="label label-success">
@@ -84,6 +88,7 @@
                                     </span>
                                 @endif
                             </td>
+
 
                         </tr>
                         @empty

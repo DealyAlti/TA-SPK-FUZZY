@@ -28,19 +28,8 @@
 
         <div class="box-body">
 
-            {{-- FILTER --}}
+            {{-- FILTER TANGGAL --}}
             <form class="form-inline" method="GET" style="margin-bottom:15px;">
-                <div class="form-group" style="margin-right:8px;">
-                    <select name="id_produk" class="form-control">
-                        <option value="">Semua Produk</option>
-                        @foreach($produk as $p)
-                            <option value="{{ $p->id_produk }}" {{ request('id_produk')==$p->id_produk ? 'selected' : '' }}>
-                                {{ $p->nama_produk }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
                 <div class="form-group" style="margin-right:8px;">
                     <input type="date" name="from" class="form-control" value="{{ request('from') }}" placeholder="Dari">
                 </div>
@@ -63,21 +52,23 @@
                     <thead>
                         <tr>
                             <th>Tanggal</th>
-                            <th>Produk</th>
-                            <th>Jumlah Terjual</th>
-                            <th>Stok Sekarang (Produk)</th>
+                            <th>Total Terjual</th>
+                            <th>Total Item</th>
+                            <th style="width:120px;">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($riwayat as $r)
                             <tr>
                                 <td>{{ \Carbon\Carbon::parse($r->tanggal)->format('d/m/Y') }}</td>
-                                <td>{{ $r->produk->nama_produk }}</td>
-                                <td><b>{{ number_format($r->jumlah) }} kg</b></td>
+                                <td>{{ number_format($r->total_terjual) }} kg</td>
+                                <td>{{ $r->total_item }}</td>
                                 <td>
-                                    {{ $r->stok_saat_itu !== null ? number_format($r->stok_saat_itu) . ' kg' : '-' }}
+                                    <a class="btn btn-primary btn-sm"
+                                       href="{{ route('penjualan.detail', $r->tanggal) }}">
+                                        <i class="fa fa-eye"></i> DETAIL
+                                    </a>
                                 </td>
-
                             </tr>
                         @empty
                             <tr>

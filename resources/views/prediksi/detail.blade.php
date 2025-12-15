@@ -10,9 +10,20 @@
 @section('content')
 <div class="row">
     <div class="col-lg-12">
-        <a href="{{ route('prediksi.hasil') }}" class="btn btn-default" style="margin-bottom:10px;">
-            &laquo; Kembali ke Ringkasan
-        </a>
+        @php
+            $from = request('from');                 // 'hasil' atau 'riwayat'
+            $hasSession = session()->has('hasil_prediksi'); // kalau buka dari riwayat biasanya false
+        @endphp
+
+        @if($from === 'riwayat' || !$hasSession)
+            <a href="{{ route('prediksi.riwayat') }}" class="btn btn-default" style="margin-bottom:10px;">
+                &laquo; Kembali ke Riwayat Prediksi
+            </a>
+        @else
+            <a href="{{ route('prediksi.hasil') }}" class="btn btn-default" style="margin-bottom:10px;">
+                &laquo; Kembali ke Ringkasan
+            </a>
+        @endif
 
             {{-- ================== HASIL PERHITUNGAN ================== --}}
             @if ($hasil)
