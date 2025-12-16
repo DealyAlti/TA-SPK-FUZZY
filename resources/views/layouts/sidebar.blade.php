@@ -42,16 +42,16 @@
 
             <li class="header">FUZZY TSUKAMOTO</li>
 
-            <!-- Prediksi (SOFT ACTIVE) -->
-            <li class="{{ request()->routeIs('prediksi.index','prediksi.hitung') ? 'active-soft' : '' }}">
+            <!-- Prediksi -->
+            <li class="{{ request()->routeIs('prediksi.index','prediksi.hitung') ? 'active' : '' }}">
                 <a href="{{ route('prediksi.index') }}">
                     <i class="fa fa-line-chart"></i>
                     <span> Prediksi</span>
                 </a>
             </li>
 
-            <!-- Hasil (SOFT ACTIVE) -->
-            <li class="{{ request()->routeIs('prediksi.hasil','prediksi.detail','prediksi.riwayat*') ? 'active-soft' : '' }}">
+            <!-- Hasil -->
+            <li class="{{ request()->routeIs('prediksi.hasil','prediksi.detail','prediksi.riwayat*') ? 'active' : '' }}">
                 <a href="{{ route('prediksi.riwayat') }}">
                     <i class="fa fa-check-circle"></i>
                     <span> Hasil</span>

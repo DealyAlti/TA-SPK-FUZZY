@@ -983,6 +983,25 @@
             overflow-y: auto;
         }
 
+        /* ===============================
+        GLOBAL: TABLE TEXT CENTER
+        (AdminLTE + Bootstrap 3)
+        =============================== */
+        .table > thead > tr > th,
+        .table > tbody > tr > td,
+        .table > tfoot > tr > td {
+            text-align: center !important;
+            vertical-align: middle !important;
+        }
+
+        /* Kalau ada link/tombol di dalam cell, biar ikut rapi tengah */
+        .table td a,
+        .table td .btn,
+        .table td .label,
+        .table td span {
+            margin-left: auto;
+            margin-right: auto;
+        }
 
 
     </style>
