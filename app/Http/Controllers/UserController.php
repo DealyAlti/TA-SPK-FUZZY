@@ -26,13 +26,13 @@ class UserController extends Controller
         return datatables()
             ->of($users)
             ->addIndexColumn()
-            ->addColumn('level', function ($user) {
-                switch ($user->level) {
-                    case 0: return 'Owner';
-                    case 1: return 'Kepala Gudang';
-                    case 2: return 'Kasir';
-                    default: return 'Unknown';
-                }
+            ->editColumn('level', function ($user) {
+                return match ((int) $user->level) {
+                    0 => 'Owner',
+                    1 => 'Kepala Produksi',
+                    2 => 'Admin',
+                    default => 'Tidak Diketahui',
+                };
             })
             ->addColumn('aksi', function ($user) {
                 return '

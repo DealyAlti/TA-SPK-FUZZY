@@ -582,6 +582,61 @@
             border: none !important;
         }
 
+        /* ===============================
+        `   GLOBAL: BESARIN UI DATATABLES
+        (dropdown + search + text)
+        =============================== */
+
+        /* label: "Show ... entries" & "Search:" */
+        .dataTables_wrapper .dataTables_length label,
+        .dataTables_wrapper .dataTables_filter label {
+            font-size: 15px !important;
+            font-weight: 600 !important;
+            color: var(--gray-700) !important;
+        }
+
+        /* dropdown "Show entries" */
+        .dataTables_wrapper .dataTables_length select {
+            height: 44px !important;
+            min-width: 84px !important;
+            padding: 6px 14px !important;
+            font-size: 14px !important;
+            border-radius: 12px !important;
+            border: 2px solid var(--gray-200) !important;
+            background: #fff !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,.08);
+        }
+
+        /* search input */
+        .dataTables_wrapper .dataTables_filter input {
+            height: 44px !important;
+            width: 260px !important;  /* bisa kamu gedein/kecilin */
+            padding: 10px 14px !important;
+            font-size: 14px !important;
+            border-radius: 12px !important;
+            border: 2px solid var(--gray-200) !important;
+            background: #fff !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,.08);
+        }
+
+        /* fokus merah */
+        .dataTables_wrapper .dataTables_length select:focus,
+        .dataTables_wrapper .dataTables_filter input:focus {
+            border-color: var(--accent-red) !important;
+            box-shadow: 0 0 0 4px rgba(183,28,28,.15) !important;
+            outline: none !important;
+        }
+
+        /* rapihin posisi biar sejajar */
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_filter {
+            padding: 8px 0 !important;
+        }
+        .dataTables_wrapper .dataTables_filter {
+            text-align: right !important;
+        }`
+
+
         /* ========================================
            📦 INFO BOXES - Dashboard Cards
         ======================================== */
@@ -1003,6 +1058,130 @@
             margin-right: auto;
         }
 
+        /* ===============================
+        FIX: SIDEBAR DIAM (TIDAK IKUT SCROLL)
+        AdminLTE 2 + header 70px
+        ================================= */
+
+        /* 1) bikin sidebar fixed */
+        .main-sidebar{
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            height: 100vh !important;
+            overflow-y: auto !important;
+            z-index: 1030; /* di atas konten */
+            padding-top: 70px; /* karena header kamu 70px */
+        }
+
+        /* 2) pastikan header tetap di atas sidebar */
+        .main-header{
+            position: fixed !important;
+            top: 0; left: 0; right: 0;
+            z-index: 1040;
+        }
+
+        /* 3) geser konten & footer agar tidak ketimpa sidebar */
+        .content-wrapper,
+        .main-footer{
+            margin-left: 230px !important; /* lebar sidebar adminlte */
+        }
+
+        /* 4) geser konten ke bawah karena header fixed 70px */
+        .content-wrapper{
+            margin-top: 70px !important;
+        }
+
+        /* 5) kalau logo juga fixed (biar sejajar header) */
+        .main-header .logo{
+            position: fixed !important;
+            top: 0; left: 0;
+            z-index: 1041;
+        }
+
+        /* 6) wrapper jangan bikin offset aneh */
+        .wrapper{
+            overflow: visible !important;
+        }
+
+        /* ===============================
+        CONTENT HEADER: LEBIH MODERN
+        (judul + breadcrumb)
+        =============================== */
+        .content-header{
+            background: #fff !important;
+            padding: 22px 28px !important;
+            border-bottom: 1px solid var(--gray-200) !important;
+            box-shadow: 0 8px 24px rgba(0,0,0,.06) !important;
+            position: relative;
+        }
+
+        .content-header::after{
+            display: none !important;
+        }
+
+        /* Judul lebih keren */
+        .content-header > h1{
+            margin: 0 !important;
+            font-size: 34px !important;
+            font-weight: 900 !important;
+            letter-spacing: -0.6px;
+            color: var(--gray-900) !important;
+        }
+
+        /* Breadcrumb jadi pill, rapih kanan */
+        .content-header > .breadcrumb{
+            top: 50% !important;
+            transform: translateY(-50%);
+            right: 28px !important;
+            background: #fff !important;
+            padding: 10px 14px !important;
+            border-radius: 999px !important;
+            border: 1px solid var(--gray-200) !important;
+            box-shadow: 0 6px 16px rgba(0,0,0,.06);
+            font-size: 13px !important;
+        }
+
+        /* item breadcrumb */
+        .content-header > .breadcrumb > li{
+            color: var(--gray-600) !important;
+            font-weight: 600;
+        }
+
+        /* link breadcrumb */
+        .content-header > .breadcrumb > li > a{
+            color: var(--accent-red) !important;
+            font-weight: 800;
+        }
+
+        /* separator jadi icon kecil */
+        .content-header > .breadcrumb > li + li:before{
+            content: "›" !important;
+            color: var(--gray-300) !important;
+            padding: 0 10px !important;
+            font-size: 16px !important;
+        }
+
+        /* responsive biar breadcrumb turun rapi */
+        @media (max-width: 768px){
+            .content-header{
+                padding: 18px 16px !important;
+            }
+            .content-header:after{
+                left: 16px; right: 16px;
+            }
+            .content-header > h1{
+                font-size: 24px !important;
+            }
+            .content-header > .breadcrumb{
+                position: static !important;
+                transform: none !important;
+                margin-top: 10px !important;
+                display: inline-flex;
+            }
+        }
+
+        
 
     </style>
 

@@ -1,14 +1,13 @@
 <header class="main-header">
-    @php
-        // Mapping level user
-        $roles = [
-            0 => 'Owner',
-            1 => 'Kepala Gudang',
-            2 => 'Kasir',
-        ];
+        @php
+            $roles = [
+                0 => 'Owner',
+                1 => 'Kepala Produksi',
+                2 => 'Admin',
+            ];
 
-        $level = auth()->user()->level ?? null;
-    @endphp
+            $level = auth()->user()->level ?? null;
+        @endphp
     <!-- Logo -->
     <a href="{{ url('/') }}" class="logo">
         <span class="logo-lg"><b>Fuzzy</b>Tsukamoto</span>
@@ -53,8 +52,10 @@
                                 <a href="{{ route('user.profil') }}" class="btn btn-profile">
                                     <i class="fa fa-user"></i> Profil
                                 </a>
-                                <a href="#" class="btn btn-logout" onclick="event.preventDefault(); $('#logout-form').submit();">
-                                    <i class="fa fa-sign-out-alt"></i> Logout
+                                <a href="#"
+                                class="btn btn-logout"
+                                onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                    <i class="fa fa-sign-out"></i> Logout
                                 </a>
                             </div>
                         </li>

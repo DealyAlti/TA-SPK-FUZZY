@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('title','Riwayat Prediksi')
+@section('title','Hasil Prediksi')
 
 @section('breadcrumb')
     @parent
-    <li class="active">Riwayat Prediksi</li>
+    <li class="active">Hasil Prediksi</li>
 @endsection
 
 @push('css')
@@ -250,21 +250,34 @@ td.aksi-links{
         </td>
 
         <td class="aksi-links">
-            <a class="aksi-link"
-               href="{{ route('prediksi.detailById',['id'=>$r->id_hasil_prediksi,'from'=>'riwayat']) }}">
-                <i class="fa fa-calculator"></i> Perhitungan
-            </a>
 
-            @if($r->hasil_aktual === null)
+            {{-- PERHITUNGAN: hanya Owner (0) --}}
+            @if(auth()->user()->level == 0)
                 <a class="aksi-link"
-                   href="{{ route('prediksi.riwayat.formAktual',$r->id_hasil_prediksi) }}">
-                    <i class="fa fa-edit"></i> Input Aktual
+                href="{{ route('prediksi.detailById',['id'=>$r->id_hasil_prediksi,'from'=>'riwayat']) }}">
+                    <i class="fa fa-calculator"></i> Perhitungan
                 </a>
-            @else
-                <span class="aksi-link aksi-link-success">
-                    <i class="fa fa-check-circle"></i> Terverifikasi
-                </span>
             @endif
+
+            {{-- INPUT AKTUAL: Owner (0) & Kepala Produksi (1) --}}
+            @if(in_array(auth()->user()->level, [0,1]))
+                @if($r->hasil_aktual === null)
+                    <a class="aksi-link"
+                    href="{{ route('prediksi.riwayat.formAktual',$r->id_hasil_prediksi) }}">
+                        <i class="fa fa-edit"></i> Input Aktual
+                    </a>
+                @else
+                    <span class="aksi-link aksi-link-success">
+                        <i class="fa fa-check-circle"></i> Terverifikasi
+                    </span>
+                @endif
+            @endif
+
+            {{-- ADMIN (2): tidak ada aksi --}}
+            @if(auth()->user()->level == 2)
+                <span style="color:#9ca3af;font-weight:600;">-</span>
+            @endif
+
         </td>
     </tr>
     @empty

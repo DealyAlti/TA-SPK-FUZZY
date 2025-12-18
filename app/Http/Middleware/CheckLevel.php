@@ -7,22 +7,25 @@ use Illuminate\Http\Request;
 
 class CheckLevel
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
-     * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
-     */
     public function handle(Request $request, Closure $next, ...$levels)
     {
         $user = auth()->user();
 
-        if (!in_array($user->level, $levels)) {
-            return redirect()->route('dashboard');
+        // kalau belum login (jaga-jaga)
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        // OWNER (0) → bebas akses semua
+        if ($user->level == 0) {
+            return $next($request);
+        }
+
+        // selain owner → cek level
+        if (!in_array((string)$user->level, $levels, true)) {
+            abort(403, 'Anda tidak memiliki akses ke halaman ini.');
         }
 
         return $next($request);
     }
 }
-

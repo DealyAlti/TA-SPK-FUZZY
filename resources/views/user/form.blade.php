@@ -69,8 +69,8 @@
                                 oninput="this.setCustomValidity('')">
                                 <option value="">-- Pilih Hak Akses --</option>
                                 <option value="0">Owner</option>
-                                <option value="1">Kepala Gudang</option>
-                                <option value="2">Kasir</option>
+                                <option value="1">Kepala Produksi</option>
+                                <option value="2">Admin</option>
                             </select>
                             <span class="help-block with-errors"></span>
                         </div>

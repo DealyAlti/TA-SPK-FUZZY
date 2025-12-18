@@ -29,23 +29,9 @@
                 <div class="form-group row">
                     <label class="col-lg-2 control-label">Hak Akses</label>
                     <div class="col-lg-6">
-                        <p class="form-control-static">
-                            @if ($user->level == 0) Owner
-                            @elseif ($user->level == 1) Kepala Gudang
-                            @elseif ($user->level == 2) Kasir
-                            @else Tidak Dikenal
-                            @endif
-                        </p>
+                        <p class="form-control-static">{{ $user->role_name }}</p>
                     </div>
                 </div>
-                @if ($user->level == 2)
-                <div class="form-group row">
-                    <label class="col-lg-2 control-label">Toko</label>
-                    <div class="col-lg-6">
-                        <p class="form-control-static">{{ $user->toko->nama_toko ?? '-' }}</p>
-                    </div>
-                </div>
-                @endif
             </div>
         </div>
     </div>
