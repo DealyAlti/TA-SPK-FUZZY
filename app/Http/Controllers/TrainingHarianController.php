@@ -152,9 +152,30 @@ class TrainingHarianController extends Controller
             return back()->with('error', "Belum ada draft training harian untuk tanggal {$tanggal}. Import dulu templatenya.");
         }
 
-        DB::transaction(function () use ($draft, $tanggal) {
+        // cek apakah ada minimal 1 draft yang valid (tidak 0 & 0)
+        $adaValid = $draft->contains(function ($d) {
+            return ((int)$d->penjualan > 0) || ((int)$d->hasil_produksi > 0);
+        });
+
+        if (!$adaValid) {
+            return back()->with('error', "Semua draft tanggal {$tanggal} bernilai 0 (penjualan=0 & hasil=0). Tidak ada yang bisa di-generate.");
+        }
+
+        $inserted = 0;
+        $skipped  = 0;
+
+        DB::transaction(function () use ($draft, $tanggal, &$inserted, &$skipped) {
 
             foreach ($draft as $d) {
+
+                $penjualan = (int) $d->penjualan;
+                $hasil     = (int) $d->hasil_produksi;
+
+                // ✅ RULE: kalau 0 & 0 => skip, tidak masuk data_training, stok tidak berubah
+                if ($penjualan <= 0 && $hasil <= 0) {
+                    $skipped++;
+                    continue;
+                }
 
                 $produk = Produk::lockForUpdate()->where('id_produk', $d->id_produk)->first();
 
@@ -167,10 +188,9 @@ class TrainingHarianController extends Controller
                     ->orderBy('id_data_training', 'desc')
                     ->first();
 
-                $stokSebelumnya = $lastTraining ? (int)$lastTraining->stok_barang_jadi : (int)($produk->stok ?? 0);
-
-                $penjualan = (int)$d->penjualan;
-                $hasil     = (int)$d->hasil_produksi;
+                $stokSebelumnya = $lastTraining
+                    ? (int) $lastTraining->stok_barang_jadi
+                    : (int) ($produk->stok ?? 0);
 
                 // stok akhir = stok sebelum - jual + hasil
                 $stokAkhir = $stokSebelumnya - $penjualan + $hasil;
@@ -180,21 +200,27 @@ class TrainingHarianController extends Controller
                 DataTraining::create([
                     'id_produk'        => $produk->id_produk,
                     'tanggal'          => $tanggal,
-                    'penjualan'        => $penjualan,
-                    'hasil_produksi'   => $hasil,
+                    'penjualan'        => max(0, $penjualan),
+                    'hasil_produksi'   => max(0, $hasil),
                     'stok_barang_jadi' => $stokAkhir,
                 ]);
 
                 // update stok realtime produk mengikuti stok akhir tanggal tsb
                 $produk->stok = $stokAkhir;
                 $produk->save();
+
+                $inserted++;
             }
         });
 
         return redirect()
             ->route('training.harian.index', ['tanggal' => $tanggal])
-            ->with('success', "Generate berhasil: draft {$tanggal} sudah masuk ke Data Training & stok ter-update.");
+            ->with(
+                'success',
+                "Generate berhasil ({$tanggal}). Masuk Data Training: {$inserted} produk. Dilewati (0 & 0): {$skipped} produk."
+            );
     }
+
 
     protected function normalizeExcelDate($value): ?string
     {
