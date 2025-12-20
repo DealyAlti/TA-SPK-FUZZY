@@ -1,6 +1,6 @@
 @extends('layouts.master')
 
-@section('title', 'Detail Perhitungan Prediksi')
+@section('title', 'Detail Perhitungan')
 
 @section('breadcrumb')
     @parent
@@ -17,7 +17,7 @@
 
         @if($from === 'riwayat' || !$hasSession)
             <a href="{{ route('prediksi.riwayat') }}" class="btn btn-default" style="margin-bottom:10px;">
-                &laquo; Kembali ke Riwayat Prediksi
+                &laquo; Kembali ke Riwayat Saran
             </a>
         @else
             <a href="{{ route('prediksi.hasil') }}" class="btn btn-default" style="margin-bottom:10px;">
@@ -36,7 +36,7 @@
                     <div class="box-body">
 
                         {{-- Ringkasan input & output --}}
-                        <h4>Data Input & Hasil Prediksi</h4>
+                        <h4>Data Input & Hasil Saran</h4>
                         <table class="table table-bordered">
                             <thead>
                                 <tr>

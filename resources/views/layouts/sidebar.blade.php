@@ -31,33 +31,45 @@
                     </a>
                 </li>
 
-                <li class="{{ request()->routeIs('training.*') ? 'active' : '' }}">
-                    <a href="{{ route('training.index') }}">
+                {{-- DATA TRAINING (DROPDOWN) --}}
+                <li class="treeview {{ request()->routeIs('training.*') || request()->routeIs('training.harian.*') ? 'active menu-open' : '' }}">
+                    <a href="#">
                         <i class="fa fa-database"></i>
                         <span>Data Training</span>
+                        <span class="pull-right-container">
+                            <i class="fa fa-angle-left pull-right"></i>
+                        </span>
                     </a>
+
+                    <ul class="treeview-menu">
+                        <li class="{{ request()->routeIs('training.index','training.data','training.store','training.update','training.destroy','training.template','training.import','training.generateHarian') ? 'active' : '' }}">
+                            <a href="{{ route('training.index') }}">
+                                <i class="fa fa-circle-o"></i> Data Training
+                            </a>
+                        </li>
+
+                        <li class="{{ request()->routeIs('training.harian.*') ? 'active' : '' }}">
+                            <a href="{{ route('training.harian.index') }}">
+                                <i class="fa fa-circle-o"></i> Training Harian
+                            </a>
+                        </li>
+                    </ul>
                 </li>
+
 
                 <li class="header">FUZZY TSUKAMOTO</li>
 
                 <li class="{{ request()->routeIs('prediksi.index','prediksi.hitung') ? 'active' : '' }}">
                     <a href="{{ route('prediksi.index') }}">
                         <i class="fa fa-line-chart"></i>
-                        <span>Prediksi</span>
+                        <span>Saran Produksi</span>
                     </a>
                 </li>
 
                 <li class="{{ request()->routeIs('prediksi.riwayat*','prediksi.detail*') ? 'active' : '' }}">
                     <a href="{{ route('prediksi.riwayat') }}">
                         <i class="fa fa-check-circle"></i>
-                        <span>Hasil Prediksi</span>
-                    </a>
-                </li>
-
-                <li class="{{ request()->routeIs('penjualan.*') ? 'active' : '' }}">
-                    <a href="{{ route('penjualan.riwayat') }}">
-                        <i class="fa fa-money"></i>
-                        <span>Penjualan</span>
+                        <span>Riwayat</span>
                     </a>
                 </li>
 
@@ -78,19 +90,7 @@
                 <li class="{{ request()->routeIs('prediksi.riwayat*','prediksi.detail*','prediksi.hasil') ? 'active' : '' }}">
                     <a href="{{ route('prediksi.riwayat') }}">
                         <i class="fa fa-check-circle"></i>
-                        <span>Hasil Prediksi</span>
-                    </a>
-                </li>
-
-            {{-- ================= ADMIN / KASIR (LEVEL 2) ================= --}}
-            @elseif(auth()->user()->level == 2)
-
-                <li class="header">TRANSAKSI</li>
-
-                <li class="{{ request()->routeIs('penjualan.*') ? 'active' : '' }}">
-                    <a href="{{ route('penjualan.riwayat') }}">
-                        <i class="fa fa-money"></i>
-                        <span>Penjualan</span>
+                        <span>Riwayat Perhitungan</span>
                     </a>
                 </li>
 

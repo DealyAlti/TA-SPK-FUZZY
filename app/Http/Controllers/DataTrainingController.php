@@ -4,32 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Models\DataTraining;
 use App\Models\Produk;
-use App\Models\Penjualan;
-use App\Models\HasilPrediksi;
-use App\Models\StokHarian;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
-use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\DataTrainingTemplateExport;
-use Illuminate\Support\Facades\DB;
 
 class DataTrainingController extends Controller
 {
-    /**
-     * Halaman utama: pilih produk + tabel data training.
-     */
     public function index()
     {
         $produk = Produk::orderBy('nama_produk')->get();
-
         return view('data_training.index', compact('produk'));
     }
 
-    /**
-     * DataTables untuk 1 produk tertentu.
-     * route: training.data
-     */
     public function data($id_produk)
     {
         $training = DataTraining::where('id_produk', $id_produk)
@@ -45,12 +33,11 @@ class DataTrainingController extends Controller
                 return $row->stok_barang_jadi;
             })
             ->addColumn('aksi', function ($row) {
-                // HANYA HAPUS
-                $del  = route('training.destroy', $row->id_data_training);
+                $del = route('training.destroy', $row->id_data_training);
 
                 return '
                     <div class="btn-group">
-                        <button type="button" onclick="deleteData(`'.$del.'`)" 
+                        <button type="button" onclick="deleteData(`'.$del.'`)"
                                 class="btn btn-xs btn-danger btn-flat">
                             <i class="fa fa-trash"></i>
                         </button>
@@ -61,154 +48,6 @@ class DataTrainingController extends Controller
             ->make(true);
     }
 
-
-    /**
-     * Simpan data training harian (input manual).
-     * stok_akhir dihitung otomatis dari stok sebelumnya.
-     * route: training.store (POST)
-     */
-    public function store(Request $request)
-    {
-        $request->validate([
-            'id_produk'      => 'required|exists:produk,id_produk',
-            'tanggal'        => 'required|date',
-            'penjualan'      => 'required|integer|min:0',
-            'hasil_produksi' => 'required|integer|min:0',
-        ]);
-
-        // Cek duplikat per produk + tanggal
-        $exists = DataTraining::where('id_produk', $request->id_produk)
-            ->where('tanggal', $request->tanggal)
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'message' => 'Data training untuk tanggal ini sudah ada.'
-            ], 422);
-        }
-
-        $produk = Produk::findOrFail($request->id_produk);
-
-        // Cari stok sebelumnya:
-        // - jika sudah ada data training: pakai stok_barang_jadi terakhir <= tanggal ini
-        // - kalau belum ada: pakai stok realtime di tabel produk (stok awal dari import)
-        $lastTraining = DataTraining::where('id_produk', $request->id_produk)
-            ->where('tanggal', '<=', $request->tanggal)
-            ->orderBy('tanggal', 'desc')
-            ->orderBy('id_data_training', 'desc')
-            ->first();
-
-        if ($lastTraining) {
-            $stokSebelumnya = (int) $lastTraining->stok_barang_jadi;
-        } else {
-            $stokSebelumnya = (int) ($produk->stok ?? 0);
-        }
-
-        $penjualan     = (int) $request->penjualan;
-        $hasilProduksi = (int) $request->hasil_produksi;
-
-        $stokAkhir = $stokSebelumnya - $penjualan + $hasilProduksi;
-        if ($stokAkhir < 0) $stokAkhir = 0;
-
-        $data = DataTraining::create([
-            'id_produk'        => $request->id_produk,
-            'tanggal'          => $request->tanggal,
-            'penjualan'        => $penjualan,
-            'hasil_produksi'   => $hasilProduksi,
-            'stok_barang_jadi' => $stokAkhir,
-        ]);
-
-        // Update stok realtime produk => stok akhir terakhir
-        $latest = DataTraining::where('id_produk', $request->id_produk)
-            ->orderBy('tanggal', 'desc')
-            ->orderBy('id_data_training', 'desc')
-            ->first();
-
-        if ($latest) {
-            $produk->stok = $latest->stok_barang_jadi;
-            $produk->save();
-        }
-
-        return response()->json([
-            'message' => 'Data training berhasil disimpan',
-            'data'    => $data,
-        ], 200);
-    }
-
-    /**
-     * Tampilkan 1 baris data training (untuk edit).
-     * route: training.show (kalau dipakai) – di js kamu pakai langsung route update untuk GET,
-     * tapi kalau mau bisa arahkan ini.
-     */
-    public function show($id)
-    {
-        $data = DataTraining::findOrFail($id);
-
-        return response()->json($data);
-    }
-
-    /**
-     * Update data training harian.
-     * stok_akhir dihitung ulang.
-     * route: training.update (PUT)
-     */
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'tanggal'        => 'required|date',
-            'penjualan'      => 'required|integer|min:0',
-            'hasil_produksi' => 'required|integer|min:0',
-        ]);
-
-        $data   = DataTraining::findOrFail($id);
-        $produk = Produk::findOrFail($data->id_produk);
-
-        // stok sebelumnya = stok akhir record sebelum tanggal ini
-        $last = DataTraining::where('id_produk', $data->id_produk)
-            ->where('tanggal', '<', $request->tanggal)
-            ->where('id_data_training', '!=', $id)
-            ->orderBy('tanggal', 'desc')
-            ->orderBy('id_data_training', 'desc')
-            ->first();
-
-        if ($last) {
-            $stokSebelumnya = (int) $last->stok_barang_jadi;
-        } else {
-            $stokSebelumnya = (int) ($produk->stok ?? 0);
-        }
-
-        $penjualan     = (int) $request->penjualan;
-        $hasilProduksi = (int) $request->hasil_produksi;
-
-        $stokAkhir = $stokSebelumnya - $penjualan + $hasilProduksi;
-        if ($stokAkhir < 0) $stokAkhir = 0;
-
-        $data->update([
-            'tanggal'          => $request->tanggal,
-            'penjualan'        => $penjualan,
-            'hasil_produksi'   => $hasilProduksi,
-            'stok_barang_jadi' => $stokAkhir,
-        ]);
-
-        // kalau ini record paling terakhir → update stok produk
-        $latest = DataTraining::where('id_produk', $data->id_produk)
-            ->orderBy('tanggal', 'desc')
-            ->orderBy('id_data_training', 'desc')
-            ->first();
-
-        if ($latest && $latest->id_data_training == $data->id_data_training) {
-            $produk->stok = $stokAkhir;
-            $produk->save();
-        }
-
-        return response()->json('Data training berhasil diupdate', 200);
-    }
-
-    /**
-     * Hapus data training.
-     * Kalau yang dihapus adalah baris terakhir → stok produk diset ke stok_akhir sebelumnya.
-     * route: training.destroy (DELETE)
-     */
     public function destroy($id)
     {
         $data   = DataTraining::findOrFail($id);
@@ -216,7 +55,6 @@ class DataTrainingController extends Controller
 
         $data->delete();
 
-        // setelah hapus, cari data training terakhir untuk update stok produk
         $latest = DataTraining::where('id_produk', $produk->id_produk)
             ->orderBy('tanggal', 'desc')
             ->orderBy('id_data_training', 'desc')
@@ -228,10 +66,6 @@ class DataTrainingController extends Controller
         return response(null, 204);
     }
 
-    /**
-     * EXPORT TEMPLATE – terkunci ke produk yang dipilih.
-     * route: training.template (GET)
-     */
     public function exportTemplate($id_produk)
     {
         $produk = Produk::findOrFail($id_produk);
@@ -240,11 +74,6 @@ class DataTrainingController extends Controller
         return Excel::download(new DataTrainingTemplateExport($produk), $fileName);
     }
 
-    /**
-     * IMPORT DATA TRAINING dari Excel.
-     * Template harus sesuai produk (dicek dari header baris pertama).
-     * route: training.import (POST)
-     */
     public function import(Request $request)
     {
         $request->validate([
@@ -261,9 +90,7 @@ class DataTrainingController extends Controller
             return back()->with('error', 'File kosong atau format tidak sesuai.');
         }
 
-        // ===== 🔒 CEK PRODUK DI TEMPLATE (HEADER BARIS 0) =====
-        // Contoh header baris 0:
-        // "PRODUCT: Mawar KM (ID: 1)"
+        // validasi header template (baris 0 biasanya "PRODUCT: ... ID: ...")
         if (!isset($rows[0][0]) || stripos($rows[0][0], 'PRODUCT:') === false) {
             return back()->with('error', 'Template tidak valid atau sudah diubah.');
         }
@@ -274,32 +101,43 @@ class DataTrainingController extends Controller
         if ($templateProductId != $produk->id_produk) {
             return back()->with('error', 'Template ini bukan untuk produk: '.$produk->nama_produk);
         }
-        // =====================================================
 
-        // Mulai dari baris ke-2 (index 1 adalah heading: tanggal, penjualan, stok, hasil_produksi)
+        $inserted = 0;
+        $updated  = 0;
+        $skipped  = 0;
+
+        // untuk info tanggal di alert (ambil tanggal terakhir yang berhasil diproses)
+        $tanggalInfo = null;
+
         foreach ($rows as $index => $row) {
-            if ($index < 2) continue; // skip header & headings
+            if ($index < 2) continue; // skip 2 baris awal (judul+kolom)
 
-            // kalau baris kosong, lewati
-            if (
+            // skip baris kosong
+            $allEmpty =
                 (!isset($row[0]) || $row[0] === null || $row[0] === '') &&
                 (!isset($row[1]) || $row[1] === null || $row[1] === '') &&
                 (!isset($row[2]) || $row[2] === null || $row[2] === '') &&
-                (!isset($row[3]) || $row[3] === null || $row[3] === '')
-            ) {
-                continue;
-            }
+                (!isset($row[3]) || $row[3] === null || $row[3] === '');
 
-            $rawTanggal      = $row[0] ?? null;
-            $penjualan       = (int)($row[1] ?? 0);
-            $stokBarangJadi  = (int)($row[2] ?? 0);
-            $hasilProduksi   = (int)($row[3] ?? 0);
+            if ($allEmpty) continue;
+
+            $rawTanggal     = $row[0] ?? null;
+            $penjualan      = (int)($row[1] ?? 0);
+            $stokBarangJadi = (int)($row[2] ?? 0);
+            $hasilProduksi  = (int)($row[3] ?? 0);
 
             $tanggal = $this->normalizeExcelDate($rawTanggal);
             if (!$tanggal) {
-                // kalau tanggal gagal diparsing, lewati/bariskan pesan
+                $skipped++;
                 continue;
             }
+
+            $tanggalInfo = $tanggal;
+
+            // cek existing
+            $exists = DataTraining::where('id_produk', $produk->id_produk)
+                ->whereDate('tanggal', $tanggal)
+                ->exists();
 
             DataTraining::updateOrCreate(
                 [
@@ -312,9 +150,12 @@ class DataTrainingController extends Controller
                     'stok_barang_jadi' => $stokBarangJadi,
                 ]
             );
+
+            if ($exists) $updated++;
+            else $inserted++;
         }
 
-        // set stok realtime produk = stok_akhir terakhir
+        // update stok produk ke stok terakhir dari data training
         $latest = DataTraining::where('id_produk', $produk->id_produk)
             ->orderBy('tanggal', 'desc')
             ->orderBy('id_data_training', 'desc')
@@ -323,27 +164,31 @@ class DataTrainingController extends Controller
         $produk->stok = $latest ? $latest->stok_barang_jadi : 0;
         $produk->save();
 
-        return back()->with('success', 'Data training berhasil diimport.');
+        if (($inserted + $updated) === 0) {
+            return back()->with('info', 'Tidak ada data yang diimport (semua baris kosong / format tanggal tidak terbaca).');
+        }
+
+        return back()->with([
+            'import_success' => true,
+            'import_tanggal' => $tanggalInfo, // tanggal terakhir yang diproses
+            'import_inserted' => $inserted,
+            'import_updated'  => $updated,
+            'import_skipped'  => $skipped,
+        ]);
     }
 
-    /**
-     * Helper: normalisasi nilai tanggal dari Excel (serial number / string) -> 'Y-m-d'.
-     */
+
     protected function normalizeExcelDate($value): ?string
     {
-        // Jika sudah DateTime
         if ($value instanceof \DateTimeInterface) {
             return Carbon::instance($value)->format('Y-m-d');
         }
 
-        // Jika numeric (serial Excel, mis: 45474)
         if (is_numeric($value)) {
-            // Excel serial: hari sejak 1899-12-30
             $base = Carbon::createFromDate(1899, 12, 30);
             return $base->copy()->addDays((int)$value)->format('Y-m-d');
         }
 
-        // Jika string tanggal
         if (is_string($value) && trim($value) !== '') {
             try {
                 return Carbon::parse($value)->format('Y-m-d');
@@ -354,90 +199,4 @@ class DataTrainingController extends Controller
 
         return null;
     }
-
-    public function generateHarian(Request $request)
-    {
-        $request->validate([
-            'tanggal' => 'required|date',
-        ]);
-
-        $tanggal = $request->tanggal;
-
-        $generated = [];
-        $skipped   = [];
-
-        DB::transaction(function () use ($tanggal, &$generated, &$skipped) {
-
-            $produkList = Produk::orderBy('nama_produk')->get();
-
-            foreach ($produkList as $prd) {
-
-            // 1️⃣ sudah ada data training → SKIP
-            $exists = DataTraining::where('id_produk', $prd->id_produk)
-                ->whereDate('tanggal', $tanggal)
-                ->exists();
-
-            if ($exists) {
-                $skipped[] = $prd->nama_produk;
-                continue;
-            }
-
-            // 2️⃣ ambil data sumber
-            $totalJual = Penjualan::whereDate('tanggal', $tanggal)
-                ->where('id_produk', $prd->id_produk)
-                ->sum('jumlah');
-
-            $prediksi = HasilPrediksi::whereDate('tanggal', $tanggal)
-                ->where('id_produk', $prd->id_produk)
-                ->orderBy('id_hasil_prediksi', 'desc')
-                ->first();
-
-            $hasilProduksi = ($prediksi && !is_null($prediksi->hasil_aktual))
-                ? (float) $prediksi->hasil_aktual
-                : 0;
-
-            $stokAkhir = StokHarian::whereDate('tanggal', $tanggal)
-                ->where('id_produk', $prd->id_produk)
-                ->value('stok_akhir');
-
-            // 3️⃣ 🔒 VALIDASI UTAMA
-            // Kalau SEMUANYA kosong / nol → JANGAN BUAT
-            if ($totalJual == 0 && $hasilProduksi == 0 && is_null($stokAkhir)) {
-                continue;
-            }
-
-            // fallback stok
-            if (is_null($stokAkhir)) {
-                $stokAkhir = (float) $prd->stok;
-            }
-
-            // 4️⃣ SIMPAN
-            DataTraining::create([
-                'id_produk'        => $prd->id_produk,
-                'tanggal'          => $tanggal,
-                'penjualan'        => (float)$totalJual,
-                'hasil_produksi'   => (float)$hasilProduksi,
-                'stok_barang_jadi' => (float)$stokAkhir,
-            ]);
-
-            $generated[] = $prd->nama_produk;
-        }
-
-        });
-
-        // ✅ NOTIFIKASI
-        if (count($generated) === 0) {
-            return back()->with('info', 'Data training tanggal '.$tanggal.' sudah di-generate untuk semua produk.');
-        }
-
-        $msg = 'Generate selesai untuk tanggal '.$tanggal.'. '
-            . 'Berhasil: '.count($generated).' produk';
-
-        if (count($skipped) > 0) {
-            $msg .= ' | Dilewati (sudah ada): '.count($skipped).' produk';
-        }
-
-        return back()->with('success', $msg);
-    }
-
 }

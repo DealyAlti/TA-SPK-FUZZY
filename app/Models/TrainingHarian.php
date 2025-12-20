@@ -5,16 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Penjualan extends Model
+class TrainingHarian extends Model
 {
-    use HasFactory;
-    protected $table = 'penjualan';
-    protected $primaryKey = 'id_penjualan';
-
+    protected $table = 'training_harian'; // ✅ FIX PENTING
     protected $fillable = [
         'tanggal',
         'id_produk',
-        'jumlah'
+        'penjualan',
+        'hasil_produksi',
     ];
 
     public function produk()
@@ -22,5 +20,4 @@ class Penjualan extends Model
         return $this->belongsTo(Produk::class, 'id_produk', 'id_produk');
     }
 
-    
 }

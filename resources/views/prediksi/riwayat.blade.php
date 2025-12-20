@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('title','Hasil Prediksi')
+@section('title','Riwayat Perhitungan')
 
 @section('breadcrumb')
     @parent
-    <li class="active">Hasil Prediksi</li>
+    <li class="active">Riwayat Perhitungan</li>
 @endsection
 
 @push('css')
@@ -218,8 +218,7 @@ td.aksi-links{
             <th>Waktu</th>
             <th>Stok</th>
             <th>Kapasitas</th>
-            <th>Prediksi</th>
-            <th>Aktual</th>
+            <th>Saran Produksi</th>
             <th>Aksi</th>
         </tr>
     </thead>
@@ -237,52 +236,24 @@ td.aksi-links{
         <td>{{ number_format($r->kapasitas_produksi) }} kg</td>
         <td><strong style="color:#2563eb">{{ number_format($r->jumlah_produksi) }} kg</strong></td>
 
-        <td>
-            @if($r->hasil_aktual !== null)
-                <span class="modern-label modern-label-success">
-                    {{ number_format($r->hasil_aktual) }} kg
-                </span>
-            @else
-                <span class="modern-label modern-label-default">
-                    Belum Diinput
-                </span>
-            @endif
-        </td>
-
         <td class="aksi-links">
-
             {{-- PERHITUNGAN: hanya Owner (0) --}}
             @if(auth()->user()->level == 0)
                 <a class="aksi-link"
-                href="{{ route('prediksi.detailById',['id'=>$r->id_hasil_prediksi,'from'=>'riwayat']) }}">
+                   href="{{ route('prediksi.detailById',['id'=>$r->id_hasil_prediksi,'from'=>'riwayat']) }}">
                     <i class="fa fa-calculator"></i> Perhitungan
                 </a>
-            @endif
-
-            {{-- INPUT AKTUAL: Owner (0) & Kepala Produksi (1) --}}
-            @if(in_array(auth()->user()->level, [0,1]))
-                @if($r->hasil_aktual === null)
-                    <a class="aksi-link"
-                    href="{{ route('prediksi.riwayat.formAktual',$r->id_hasil_prediksi) }}">
-                        <i class="fa fa-edit"></i> Input Aktual
-                    </a>
-                @else
-                    <span class="aksi-link aksi-link-success">
-                        <i class="fa fa-check-circle"></i> Terverifikasi
-                    </span>
-                @endif
             @endif
 
             {{-- ADMIN (2): tidak ada aksi --}}
             @if(auth()->user()->level == 2)
                 <span style="color:#9ca3af;font-weight:600;">-</span>
             @endif
-
         </td>
     </tr>
     @empty
     <tr>
-        <td colspan="9" class="text-center">
+        <td colspan="8" class="text-center">
             Belum ada data
         </td>
     </tr>
@@ -292,6 +263,7 @@ td.aksi-links{
 </div>
 
 {{ $riwayat->links() }}
+
 
 </div>
 </div>

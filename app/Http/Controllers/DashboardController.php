@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Produk;
 use App\Models\Kategori;
 use App\Models\DataTraining;
-use App\Models\Penjualan;
 use App\Models\HasilPrediksi;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -18,141 +17,75 @@ class DashboardController extends Controller
         $today = Carbon::today()->toDateString();
 
         // =========================
-        // OWNER (level 0) -> dashboard/index.blade.php (punya kamu)
+        // OWNER (level 0)
         // =========================
         if ((int)$user->level === 0) {
 
-            $totalProduk     = Produk::count();
-            $totalKategori   = Kategori::count();
-            $totalTraining   = DataTraining::count();
-            $verifikasiCount = HasilPrediksi::whereNotNull('hasil_aktual')->count();
+            $totalProduk   = Produk::count();
+            $totalKategori = Kategori::count();
+            $totalTraining = DataTraining::count();
 
+            // prediksi terbaru
             $latestPrediksi = HasilPrediksi::with('produk')
                 ->orderBy('tanggal', 'desc')
                 ->orderBy('id_hasil_prediksi', 'desc')
-                ->limit(6)->get();
+                ->limit(6)
+                ->get();
 
-            $latestSales = Penjualan::with('produk')
-                ->orderBy('tanggal', 'desc')
-                ->orderBy('id_penjualan', 'desc')
-                ->limit(6)->get();
-
-            $hasSalesToday = Penjualan::whereDate('tanggal', $today)->exists();
+            // status hari ini: apakah sudah ada prediksi/saran
             $hasPrediksiToday = HasilPrediksi::whereDate('tanggal', $today)->exists();
-            $hasAktualToday = HasilPrediksi::whereDate('tanggal', $today)->whereNotNull('hasil_aktual')->exists();
-            $pendingAktualToday = HasilPrediksi::whereDate('tanggal', $today)->whereNull('hasil_aktual')->count();
 
+            // checklist (tanpa aktual & tanpa stok harian)
             $checklist = [
                 [
-                    'label' => 'Input penjualan hari ini',
-                    'done'  => $hasSalesToday,
-                    'hint'  => $hasSalesToday ? 'Sudah diinput' : 'Belum ada penjualan hari ini',
-                    'url'   => route('penjualan.index'),
-                ],
-                [
-                    'label' => 'Buat prediksi produksi hari ini',
+                    'label' => 'Buat saran produksi hari ini',
                     'done'  => $hasPrediksiToday,
-                    'hint'  => $hasPrediksiToday ? 'Prediksi tersedia' : 'Belum ada prediksi hari ini',
+                    'hint'  => $hasPrediksiToday ? 'Saran produksi tersedia' : 'Belum ada saran hari ini',
                     'url'   => route('prediksi.index'),
                 ],
                 [
-                    'label' => 'Input produksi aktual hari ini',
-                    'done'  => $hasAktualToday,
-                    'hint'  => $hasAktualToday ? 'Aktual sudah diisi' : 'Isi aktual dari riwayat prediksi',
-                    'url'   => route('prediksi.riwayat'),
+                    'label' => 'Pastikan data training terbaru sudah lengkap',
+                    'done'  => ($totalTraining > 0),
+                    'hint'  => ($totalTraining > 0) ? 'Data training tersedia' : 'Belum ada data training',
+                    'url'   => route('training.index'),
                 ],
             ];
 
-            $accRows = HasilPrediksi::whereNotNull('hasil_aktual')
-                ->orderBy('tanggal', 'desc')
-                ->orderBy('id_hasil_prediksi', 'desc')
-                ->limit(30)
-                ->get(['jumlah_produksi', 'hasil_aktual']);
-
-            $accN = $accRows->count();
-            $mae = 0;
-            $errorPercent = 0;
-
-            if ($accN > 0) {
-                $sumAbs = 0;
-                foreach ($accRows as $r) {
-                    $pred = (float) $r->jumlah_produksi;
-                    $akt  = (float) $r->hasil_aktual;
-                    $sumAbs += abs($akt - $pred);
-                }
-                $mae = $sumAbs / $accN;
-
-                $avgAktual = (float) $accRows->avg('hasil_aktual');
-                if ($avgAktual > 0) {
-                    $errorPercent = ($mae / $avgAktual) * 100;
-                }
-            }
-
+            // warnings (tanpa aktual)
             $warnings = [];
-
-            if (!$hasSalesToday) {
-                $warnings[] = [
-                    'title' => 'Belum ada penjualan hari ini',
-                    'text'  => 'Jika ada transaksi, input dulu agar stok & laporan akurat.',
-                    'type'  => 'warn',
-                    'url'   => route('penjualan.index'),
-                ];
-            }
-
             if (!$hasPrediksiToday) {
                 $warnings[] = [
-                    'title' => 'Prediksi produksi hari ini belum dibuat',
-                    'text'  => 'Buat prediksi untuk membantu penentuan jumlah produksi.',
+                    'title' => 'Saran produksi hari ini belum dibuat',
+                    'text'  => 'Buat saran produksi untuk membantu menentukan jumlah produksi hari ini.',
                     'type'  => 'warn',
                     'url'   => route('prediksi.index'),
                 ];
             }
 
-            if ($pendingAktualToday > 0) {
-                $warnings[] = [
-                    'title' => 'Aktual produksi hari ini belum lengkap',
-                    'text'  => "Masih ada {$pendingAktualToday} data prediksi yang belum diisi aktual.",
-                    'type'  => 'danger',
-                    'url'   => route('prediksi.riwayat'),
-                ];
-            }
-
-            if ($accN >= 10 && $mae > 100) {
-                $warnings[] = [
-                    'title' => 'Akurasi prediksi perlu dicek',
-                    'text'  => 'Nilai MAE cukup tinggi. Pertimbangkan cek data training / aturan fuzzy / input variabel.',
-                    'type'  => 'danger',
-                    'url'   => route('training.index'),
-                ];
-            }
+            // stok terbaru (pakai DataTraining, bukan stok_harian)
+            // Ambil 10 baris terakhir data training (untuk tampil di tabel kanan)
+            $latestStokTraining = DataTraining::with('produk')
+                ->orderBy('tanggal', 'desc')
+                ->orderBy('id_data_training', 'desc')
+                ->limit(10)
+                ->get();
 
             return view('dashboard.index', compact(
                 'totalProduk',
                 'totalKategori',
                 'totalTraining',
-                'verifikasiCount',
                 'latestPrediksi',
-                'latestSales',
                 'checklist',
-                'pendingAktualToday',
-                'mae',
-                'accN',
-                'errorPercent',
-                'warnings'
+                'warnings',
+                'latestStokTraining'
             ));
         }
 
         // =========================
         // KEPALA PRODUKSI (level 1)
-        // - fokus prediksi + input aktual
+        // (tanpa aktual)
         // =========================
         if ((int)$user->level === 1) {
-
-            $pendingAktualToday = HasilPrediksi::whereDate('tanggal', $today)
-                ->whereNull('hasil_aktual')
-                ->count();
-
-            $verifikasiCount = HasilPrediksi::whereNotNull('hasil_aktual')->count();
 
             $latestPrediksi = HasilPrediksi::with('produk')
                 ->orderBy('tanggal', 'desc')
@@ -166,8 +99,6 @@ class DashboardController extends Controller
                 ->get();
 
             return view('dashboard.kepala_produksi', compact(
-                'pendingAktualToday',
-                'verifikasiCount',
                 'latestPrediksi',
                 'prediksiHariIni'
             ));
@@ -175,35 +106,40 @@ class DashboardController extends Controller
 
         // =========================
         // ADMIN (level 2)
-        // - fokus penjualan
+        // (tanpa stok_harian & tanpa aktual)
         // =========================
         if ((int)$user->level === 2) {
 
-            $hasSalesToday = Penjualan::whereDate('tanggal', $today)->exists();
+            $totalProduk   = Produk::count();
+            $totalTraining = DataTraining::count();
 
-            $totalTerjualHariIni = (float) Penjualan::whereDate('tanggal', $today)->sum('jumlah');
-            $totalItemHariIni    = (int)   Penjualan::whereDate('tanggal', $today)->count(); // jumlah baris item
-
-            $latestSales = Penjualan::with('produk')
+            $latestPrediksi = HasilPrediksi::with('produk')
                 ->orderBy('tanggal', 'desc')
-                ->orderBy('id_penjualan', 'desc')
+                ->orderBy('id_hasil_prediksi', 'desc')
+                ->limit(10)
+                ->get();
+
+            $latestStokTraining = DataTraining::with('produk')
+                ->orderBy('tanggal', 'desc')
+                ->orderBy('id_data_training', 'desc')
                 ->limit(10)
                 ->get();
 
             $warnings = [];
-            if (!$hasSalesToday) {
+            if ($totalTraining === 0) {
                 $warnings[] = [
-                    'title' => 'Belum ada penjualan hari ini',
-                    'text'  => 'Jika ada transaksi, segera input penjualan hari ini.',
+                    'title' => 'Data training masih kosong',
+                    'text'  => 'Import / isi data training agar sistem dapat memberi saran produksi yang lebih baik.',
                     'type'  => 'warn',
-                    'url'   => route('penjualan.index'),
+                    'url'   => route('training.index'),
                 ];
             }
 
             return view('dashboard.admin', compact(
-                'totalTerjualHariIni',
-                'totalItemHariIni',
-                'latestSales',
+                'totalProduk',
+                'totalTraining',
+                'latestPrediksi',
+                'latestStokTraining',
                 'warnings'
             ));
         }

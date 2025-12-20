@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('title', 'Prediksi Jumlah Produksi')
+@section('title', 'Saran Jumlah Produksi')
 
 @section('breadcrumb')
     @parent
-    <li class="active">Prediksi</li>
+    <li class="active">Saran</li>
 @endsection
 
 @section('content')
@@ -15,9 +15,9 @@
             <div class="box-header header-red">
                 <h3 class="box-title">
                     <span class="title-icon"><i class="fa fa-calculator"></i></span>
-                    Input Data Prediksi
+                    Input Data Perhitungan
                 </h3>
-                <p class="header-sub">Isi data sesuai kondisi hari ini untuk menghasilkan prediksi jumlah produksi.</p>
+                <p class="header-sub">Isi data sesuai kondisi hari ini untuk menghasilkan saran jumlah produksi.</p>
             </div>
 
             <div class="box-body body-soft">
@@ -58,7 +58,7 @@
                         {{-- TANGGAL --}}
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label class="control-label">Tanggal Prediksi</label>
+                                <label class="control-label">Tanggal Perhitungan</label>
                                 <input type="date"
                                        name="tanggal"
                                        class="form-control input-modern"
@@ -123,7 +123,7 @@
 
                     <div class="form-actions">
                         <button type="submit" class="btn btn-prediksi">
-                            <i class="fa fa-calculator"></i> Hitung Prediksi
+                            <i class="fa fa-calculator"></i> Hitung
                         </button>
                     </div>
 

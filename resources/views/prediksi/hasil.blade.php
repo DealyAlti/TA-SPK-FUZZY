@@ -1,10 +1,10 @@
 @extends('layouts.master')
 
-@section('title', 'Hasil Prediksi')
+@section('title', 'Hasil Perhitungan')
 
 @section('breadcrumb')
     @parent
-    <li class="active">Hasil Prediksi</li>
+    <li class="active">Hasil Perhitugan</li>
 @endsection
 
 @section('content')
@@ -19,7 +19,7 @@
                 </p>
 
                 <p class="info-item">
-                    <strong>Tanggal Prediksi :</strong>
+                    <strong>Tanggal Perhitungan :</strong>
                     {{ \Carbon\Carbon::parse($hasil['input']['tanggal'])->format('d/m/Y') }}
                 </p>
 
@@ -65,7 +65,7 @@
                     </a>
 
                     <a href="{{ route('prediksi.index') }}" class="btn btn-default btn-hasil">
-                        Prediksi Baru
+                        Perhitungan Baru
                     </a>
                 </div>
 

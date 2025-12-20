@@ -8,72 +8,18 @@
 @endsection
 
 @section('content')
-
 {{-- =========================
-   ✅ HEADER ACTION: GENERATE
+   ✅ PILIH PRODUK + ACTIONss
 ========================= --}}
 <div class="row">
     <div class="col-lg-12">
         <div class="box box-solid-red">
-            <div class="box-header with-border header-solid-red">
+            <div class="box-header header-red-solid">
                 <h3 class="box-title">
-                    <i class="fa fa-database"></i> Generate Data Training Harian
+                    <i class="fa fa-cubes"></i>
+                    Pilih Produk
                 </h3>
             </div>
-
-            <div class="box-body">
-
-                @if(session('info'))
-                    <div class="alert alert-info modern-alert">
-                        <i class="fa fa-info-circle"></i> {{ session('info') }}
-                    </div>
-                @endif
-
-                @if(session('success'))
-                    <div class="alert alert-success modern-alert">
-                        <i class="fa fa-check-circle"></i> {{ session('success') }}
-                    </div>
-                @endif
-
-                <form method="POST" action="{{ route('training.generateHarian') }}" class="form-inline form-generate">
-                    @csrf
-
-                    <div class="form-group">
-                        <label class="label-inline">Tanggal</label>
-                        <input type="date"
-                               name="tanggal"
-                               class="form-control input-solid"
-                               value="{{ date('Y-m-d') }}"
-                               required>
-                    </div>
-
-                    <button class="btn btn-solid-red btn-lgx" style="margin-left:10px;">
-                        <i class="fa fa-refresh"></i> Generate Data Training
-                    </button>
-                </form>
-
-                <div class="hint-red">
-                    <i class="fa fa-lightbulb-o"></i>
-                    Data diambil otomatis dari penjualan, produksi aktual, dan stok harian.
-                </div>
-
-            </div>
-        </div>
-    </div>
-</div>
-
-{{-- =========================
-   ✅ PILIH PRODUK + ACTION
-========================= --}}
-<div class="row">
-    <div class="col-lg-12">
-        <div class="box box-solid-red">
-            <div class="box-header with-border">
-                <h3 class="box-title">
-                    <i class="fa fa-cubes"></i> Pilih Produk
-                </h3>
-            </div>
-
             <div class="box-body">
                 <div class="row row-actions">
 
@@ -86,17 +32,6 @@
                                 <option value="{{ $p->id_produk }}">{{ $p->nama_produk }}</option>
                             @endforeach
                         </select>
-                    </div>
-
-                    {{-- tambah --}}
-                    <div class="col-md-4">
-                        <label class="label-block">&nbsp;</label>
-                        <button id="btn-add"
-                                class="btn btn-solid-red btn-block btn-lgx"
-                                disabled
-                                onclick="addForm('{{ route('training.store') }}')">
-                            <i class="fa fa-plus-circle"></i> Tambah Data Training
-                        </button>
                     </div>
 
                     {{-- panduan --}}
@@ -158,8 +93,7 @@
     </div>
 </div>
 
-{{-- MODAL FORM TAMBAH/EDIT DATA TRAINING --}}
-@include('data_training.form')
+
 
 {{-- =========================
    ✅ MODAL IMPORT
@@ -173,7 +107,7 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
                 <h4 class="modal-title">
-                    <i class="fa fa-upload"></i> Impor Data Training
+                    <i class="fa fa-upload"></i> Import Data Training
                 </h4>
             </div>
 
@@ -412,6 +346,29 @@
         .row-actions{ flex-direction:column; align-items:stretch; }
         .row-actions > [class*="col-"]{ width:100%; }
     }
+    /* ===== Header Merah Solid ala Training Harian ===== */
+    .header-red-solid{
+        background: linear-gradient(90deg, #b91c1c 0%, #991b1b 100%) !important;
+        padding:20px 24px !important;
+        border-bottom:none !important;
+    }
+
+    .header-red-solid .box-title{
+        margin:0;
+        color:#ffffff !important;
+        font-weight:800;
+        font-size:18px;
+        display:flex;
+        align-items:center;
+        gap:10px;
+        letter-spacing:.2px;
+    }
+
+    .header-red-solid .box-title i{
+        font-size:18px;
+        color:#ffffff;
+    }
+    
 </style>
 @endpush
 
@@ -430,7 +387,6 @@
             selectedProduct = $(this).val();
 
             const enable = !!selectedProduct;
-            $('#btn-add').prop('disabled', !enable);
             $('#btn-import-guide').prop('disabled', !enable);
             $('#btn-download-template').prop('disabled', !enable);
             $('#import_produk_id').val(selectedProduct || '');
@@ -468,38 +424,6 @@
             }
         });
 
-        // ====== SUBMIT MODAL FORM (TAMBAH/EDIT) ======
-        $('#modal-form form').on('submit', function (e) {
-            e.preventDefault();
-
-            const form = $(this);
-            const url  = form.attr('action');
-
-            $.post(url, form.serialize())
-                .done(function (res) {
-                    $('#modal-form').modal('hide');
-                    if (table) table.ajax.reload(null, false);
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil',
-                        text: res.message || 'Data training berhasil disimpan'
-                    });
-                })
-                .fail(function (xhr) {
-                    let msg = 'Terjadi kesalahan pada server';
-                    if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.message) {
-                        msg = xhr.responseJSON.message;
-                    }
-
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal',
-                        text: msg
-                    });
-                });
-        });
-
         // ====== BUKA MODAL PANDUAN IMPORT ======
         $('#btn-import-guide').on('click', function () {
             if (!selectedProduct) {
@@ -516,18 +440,6 @@
             window.location = url;
         });
     });
-
-    // ====== TAMBAH DATA ======
-    function addForm(url) {
-        if (!selectedProduct) return;
-
-        $('#modal-form').modal('show');
-        $('#modal-form .modal-title').text('Tambah Data Training');
-        $('#modal-form form')[0].reset();
-        $('#modal-form form').attr('action', url);
-        $('#modal-form [name=_method]').val('post');
-        $('#id_produk').val(selectedProduct);
-    }
 
     // ====== DELETE DATA (dipanggil dari kolom aksi) ======
     function deleteData(url) {
@@ -556,3 +468,4 @@
     }
 </script>
 @endpush
+
