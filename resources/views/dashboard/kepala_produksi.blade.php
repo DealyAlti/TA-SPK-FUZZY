@@ -36,7 +36,10 @@
 .badge{display:inline-flex;align-items:center;justify-content:center;padding:6px 12px;border-radius:999px;font-weight:900;font-size:12px;min-width:92px;}
 .badge-red{background:var(--red);color:#fff;}
 .badge-gray{background:#e5e7eb;color:#4b5563;}
-@media(max-width:768px){.hero{flex-direction:column;align-items:flex-start}.kpi-grid{grid-template-columns:1fr}}
+@media(max-width:768px){
+    .hero{flex-direction:column;align-items:flex-start}
+    .kpi-grid{grid-template-columns:1fr}
+}
 </style>
 @endpush
 
@@ -45,25 +48,30 @@
 
     <div class="hero">
         <div>
-            <h2>Ringkasan Produksi & Verifikasi</h2>
-            <p>Fokus: lihat prediksi & input produksi aktual. (Kepala Produksi)</p>
+            <h2>Ringkasan Saran Produksi</h2>
+            <p>Fokus: melihat saran jumlah produksi (prediksi) untuk setiap produk. (Kepala Produksi)</p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <a href="{{ route('prediksi.riwayat') }}" class="btn-solid btn-outline" style="padding:8px 12px!important;">
+                <i class="fa fa-check-circle"></i> Riwayat Perhitungan
+            </a>
         </div>
     </div>
 
     <div class="kpi-grid">
         <div class="kpi">
-            <div class="label">Pending Aktual Hari Ini</div>
-            <div class="value">{{ $pendingAktualToday }}</div>
+            <div class="label">Jumlah Saran Hari Ini</div>
+            <div class="value">{{ $totalPrediksiHariIni }}</div>
         </div>
         <div class="kpi">
-            <div class="label">Prediksi Terverifikasi</div>
-            <div class="value">{{ $verifikasiCount }}</div>
+            <div class="label">Total Saran Tersimpan</div>
+            <div class="value">{{ $totalPrediksi }}</div>
         </div>
     </div>
 
     <div class="section">
         <div class="head">
-            <h3><i class="fa fa-calendar"></i> Prediksi Hari Ini</h3>
+            <h3><i class="fa fa-calendar"></i> Saran Produksi Hari Ini</h3>
             <a href="{{ route('prediksi.riwayat') }}" class="btn-solid btn-outline" style="padding:8px 12px!important;">
                 <i class="fa fa-arrow-right"></i> Lihat Semua
             </a>
@@ -74,36 +82,25 @@
                     <thead>
                         <tr>
                             <th>Produk</th>
-                            <th>Prediksi</th>
-                            <th>Aktual</th>
-                            <th>Aksi</th>
+                            <th>Saran Produksi</th>
                         </tr>
                     </thead>
                     <tbody>
                     @forelse($prediksiHariIni as $r)
                         <tr>
                             <td><b>{{ $r->produk->nama_produk }}</b></td>
-                            <td><span class="badge badge-red">{{ number_format($r->jumlah_produksi) }} kg</span></td>
                             <td>
-                                @if($r->hasil_aktual !== null)
-                                    <span class="badge badge-red">{{ number_format($r->hasil_aktual) }} kg</span>
-                                @else
-                                    <span class="badge badge-gray">Belum</span>
-                                @endif
-                            </td>
-                            <td>
-                                @if($r->hasil_aktual === null)
-                                    <a class="btn-solid" style="padding:8px 12px!important;"
-                                       href="{{ route('prediksi.riwayat.formAktual',$r->id_hasil_prediksi) }}">
-                                        <i class="fa fa-edit"></i> Input
-                                    </a>
-                                @else
-                                    <span class="badge badge-gray"><i class="fa fa-check"></i> OK</span>
-                                @endif
+                                <span class="badge badge-red">
+                                    {{ number_format($r->jumlah_produksi) }} kg
+                                </span>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:18px;">Belum ada data hari ini.</td></tr>
+                        <tr>
+                            <td colspan="2" style="text-align:center;color:#9ca3af;padding:18px;">
+                                Belum ada saran produksi untuk hari ini.
+                            </td>
+                        </tr>
                     @endforelse
                     </tbody>
                 </table>
@@ -113,7 +110,7 @@
 
     <div class="section">
         <div class="head">
-            <h3><i class="fa fa-history"></i> Prediksi Terbaru</h3>
+            <h3><i class="fa fa-history"></i> Saran Produksi Terbaru</h3>
             <a href="{{ route('prediksi.riwayat') }}" class="btn-solid btn-outline" style="padding:8px 12px!important;">
                 <i class="fa fa-arrow-right"></i> Ke Riwayat
             </a>
@@ -125,8 +122,7 @@
                         <tr>
                             <th>Tanggal</th>
                             <th>Produk</th>
-                            <th>Prediksi</th>
-                            <th>Aktual</th>
+                            <th>Saran Produksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -134,17 +130,18 @@
                         <tr>
                             <td>{{ \Carbon\Carbon::parse($p->tanggal)->format('d/m/Y') }}</td>
                             <td><b>{{ $p->produk->nama_produk }}</b></td>
-                            <td><span class="badge badge-red">{{ number_format($p->jumlah_produksi) }} kg</span></td>
                             <td>
-                                @if($p->hasil_aktual !== null)
-                                    <span class="badge badge-red">{{ number_format($p->hasil_aktual) }} kg</span>
-                                @else
-                                    <span class="badge badge-gray">Belum</span>
-                                @endif
+                                <span class="badge badge-red">
+                                    {{ number_format($p->jumlah_produksi) }} kg
+                                </span>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:18px;">Belum ada data prediksi.</td></tr>
+                        <tr>
+                            <td colspan="3" style="text-align:center;color:#9ca3af;padding:18px;">
+                                Belum ada data saran produksi.
+                            </td>
+                        </tr>
                     @endforelse
                     </tbody>
                 </table>

@@ -19,7 +19,7 @@ class DashboardController extends Controller
         // =========================
         // OWNER (level 0)
         // =========================
-        if ((int)$user->level === 0) {
+        if ((int) $user->level === 0) {
 
             $totalProduk   = Produk::count();
             $totalKategori = Kategori::count();
@@ -35,7 +35,7 @@ class DashboardController extends Controller
             // status hari ini: apakah sudah ada prediksi/saran
             $hasPrediksiToday = HasilPrediksi::whereDate('tanggal', $today)->exists();
 
-            // checklist (tanpa aktual & tanpa stok harian)
+            // checklist
             $checklist = [
                 [
                     'label' => 'Buat saran produksi hari ini',
@@ -51,7 +51,7 @@ class DashboardController extends Controller
                 ],
             ];
 
-            // warnings (tanpa aktual)
+            // warnings
             $warnings = [];
             if (!$hasPrediksiToday) {
                 $warnings[] = [
@@ -62,8 +62,7 @@ class DashboardController extends Controller
                 ];
             }
 
-            // stok terbaru (pakai DataTraining, bukan stok_harian)
-            // Ambil 10 baris terakhir data training (untuk tampil di tabel kanan)
+            // stok terbaru (pakai DataTraining)
             $latestStokTraining = DataTraining::with('produk')
                 ->orderBy('tanggal', 'desc')
                 ->orderBy('id_data_training', 'desc')
@@ -83,67 +82,75 @@ class DashboardController extends Controller
 
         // =========================
         // KEPALA PRODUKSI (level 1)
-        // (tanpa aktual)
+        // Hanya lihat prediksi/saran (tanpa hasil_aktual)
         // =========================
-        if ((int)$user->level === 1) {
+        if ((int) $user->level === 1) {
 
-            $latestPrediksi = HasilPrediksi::with('produk')
-                ->orderBy('tanggal', 'desc')
-                ->orderBy('id_hasil_prediksi', 'desc')
-                ->limit(10)
-                ->get();
-
+            // Prediksi hari ini (untuk tabel atas)
             $prediksiHariIni = HasilPrediksi::with('produk')
                 ->whereDate('tanggal', $today)
                 ->orderBy('id_hasil_prediksi', 'desc')
                 ->get();
 
-            return view('dashboard.kepala_produksi', compact(
-                'latestPrediksi',
-                'prediksiHariIni'
-            ));
-        }
-
-        // =========================
-        // ADMIN (level 2)
-        // (tanpa stok_harian & tanpa aktual)
-        // =========================
-        if ((int)$user->level === 2) {
-
-            $totalProduk   = Produk::count();
-            $totalTraining = DataTraining::count();
-
+            // Prediksi terbaru (riwayat singkat di bawah)
             $latestPrediksi = HasilPrediksi::with('produk')
                 ->orderBy('tanggal', 'desc')
                 ->orderBy('id_hasil_prediksi', 'desc')
                 ->limit(10)
                 ->get();
 
-            $latestStokTraining = DataTraining::with('produk')
+            // KPI sederhana
+            $totalPrediksiHariIni = $prediksiHariIni->count();
+            $totalPrediksi        = HasilPrediksi::count();
+
+            return view('dashboard.kepala_produksi', compact(
+                'latestPrediksi',
+                'prediksiHariIni',
+                'totalPrediksiHariIni',
+                'totalPrediksi'
+            ));
+        }
+
+        // =========================
+        // ADMIN (level 2)
+        // Fokus: Training Harian
+        // =========================
+        if ((int) $user->level === 2) {
+
+            // total record training di hari ini
+            $totalTrainingHariIni = DataTraining::whereDate('tanggal', $today)->count();
+
+            // berapa produk yang sudah punya training di hari ini
+            $totalProdukTrainingHariIni = DataTraining::whereDate('tanggal', $today)
+                ->distinct('id_produk')
+                ->count('id_produk');
+
+            // beberapa baris training terbaru (untuk tabel bawah)
+            $latestTraining = DataTraining::with('produk')
                 ->orderBy('tanggal', 'desc')
                 ->orderBy('id_data_training', 'desc')
-                ->limit(10)
+                ->limit(5)
                 ->get();
 
             $warnings = [];
-            if ($totalTraining === 0) {
+            if ($totalTrainingHariIni === 0) {
                 $warnings[] = [
-                    'title' => 'Data training masih kosong',
-                    'text'  => 'Import / isi data training agar sistem dapat memberi saran produksi yang lebih baik.',
+                    'title' => 'Data training hari ini belum ada',
+                    'text'  => 'Isi atau import data training harian agar sistem memiliki data terbaru.',
                     'type'  => 'warn',
-                    'url'   => route('training.index'),
+                    'url'   => route('training.harian.index'),
                 ];
             }
 
             return view('dashboard.admin', compact(
-                'totalProduk',
-                'totalTraining',
-                'latestPrediksi',
-                'latestStokTraining',
+                'totalTrainingHariIni',
+                'totalProdukTrainingHariIni',
+                'latestTraining',
                 'warnings'
             ));
         }
 
+        // fallback kalau level tidak dikenal
         return redirect()->route('dashboard');
     }
 }

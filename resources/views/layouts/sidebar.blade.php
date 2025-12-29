@@ -12,6 +12,7 @@
                 </a>
             </li>
 
+
             {{-- ================= OWNER (LEVEL 0) ================= --}}
             @if(auth()->user()->level == 0)
 
@@ -31,7 +32,7 @@
                     </a>
                 </li>
 
-                {{-- DATA TRAINING (DROPDOWN) --}}
+                {{-- DATA TRAINING (dropdown) --}}
                 <li class="treeview {{ request()->routeIs('training.*') || request()->routeIs('training.harian.*') ? 'active menu-open' : '' }}">
                     <a href="#">
                         <i class="fa fa-database"></i>
@@ -42,7 +43,8 @@
                     </a>
 
                     <ul class="treeview-menu">
-                        <li class="{{ request()->routeIs('training.index','training.data','training.store','training.update','training.destroy','training.template','training.import','training.generateHarian') ? 'active' : '' }}">
+
+                        <li class="{{ request()->routeIs('training.index','training.data','training.destroy','training.template','training.import') ? 'active' : '' }}">
                             <a href="{{ route('training.index') }}">
                                 <i class="fa fa-circle-o"></i> Data Training
                             </a>
@@ -53,6 +55,7 @@
                                 <i class="fa fa-circle-o"></i> Training Harian
                             </a>
                         </li>
+
                     </ul>
                 </li>
 
@@ -73,6 +76,7 @@
                     </a>
                 </li>
 
+
                 <li class="header">USER</li>
 
                 <li class="{{ request()->routeIs('user.*') ? 'active' : '' }}">
@@ -81,6 +85,8 @@
                         <span>Pengguna</span>
                     </a>
                 </li>
+
+
 
             {{-- ================= KEPALA PRODUKSI (LEVEL 1) ================= --}}
             @elseif(auth()->user()->level == 1)
@@ -91,6 +97,20 @@
                     <a href="{{ route('prediksi.riwayat') }}">
                         <i class="fa fa-check-circle"></i>
                         <span>Riwayat Perhitungan</span>
+                    </a>
+                </li>
+
+
+
+            {{-- ================= ADMIN (LEVEL 2) ================= --}}
+            @elseif(auth()->user()->level == 2)
+
+                <li class="header">DATA TRAINING</li>
+
+                <li class="{{ request()->routeIs('training.harian.*') ? 'active' : '' }}">
+                    <a href="{{ route('training.harian.index') }}">
+                        <i class="fa fa-database"></i>
+                        <span>Training Harian</span>
                     </a>
                 </li>
 

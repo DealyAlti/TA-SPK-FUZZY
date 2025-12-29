@@ -27,22 +27,28 @@ Route::middleware('auth')->group(function () {
     // =========================
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/profil', [UserController::class, 'profil'])->name('user.profil');
-    
-    // TRAINING HARIAN (OWNER / ADMIN sesuai kebutuhan kamu)
-    Route::get('/training-harian', [TrainingHarianController::class, 'index'])
-        ->name('training.harian.index');
 
-    Route::get('/training-harian/template', [TrainingHarianController::class, 'exportTemplate'])
-        ->name('training.harian.template');
+    // =========================
+    // TRAINING HARIAN
+    // OWNER (0) + ADMIN (2)
+    // =========================
+    Route::middleware('level:0,2')->group(function () {
+        Route::get('/training-harian', [TrainingHarianController::class, 'index'])
+            ->name('training.harian.index');
 
-    Route::post('/training-harian/import', [TrainingHarianController::class, 'import'])
-        ->name('training.harian.import');
+        Route::get('/training-harian/template', [TrainingHarianController::class, 'exportTemplate'])
+            ->name('training.harian.template');
 
-    Route::post('/training-harian/generate', [TrainingHarianController::class, 'generate'])
-        ->name('training.harian.generate');
+        Route::post('/training-harian/import', [TrainingHarianController::class, 'import'])
+            ->name('training.harian.import');
+
+        Route::post('/training-harian/generate', [TrainingHarianController::class, 'generate'])
+            ->name('training.harian.generate');
+    });
+
     // =========================
     // AKSES BERSAMA: OWNER + KEPALA PRODUKSI
-    // (boleh lihat riwayat & input aktual)
+    // (boleh lihat hasil/riwayat perhitungan)
     // =========================
     Route::middleware('level:0,1')->group(function () {
 

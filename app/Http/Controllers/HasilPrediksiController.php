@@ -4,22 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Produk;
 use App\Models\DataTraining;
-use App\Models\Penjualan;
 use App\Models\HasilPrediksi;
 use Illuminate\Http\Request;
-use App\Models\StokHarian;
-use Illuminate\Support\Facades\DB;
-
 
 class HasilPrediksiController extends Controller
 {
     public function index()
     {
         $produk = Produk::orderBy('nama_produk')->get();
-
-        return view('prediksi.index', [
-            'produk' => $produk,
-        ]);
+        return view('prediksi.index', compact('produk'));
     }
 
     public function hitung(Request $request)
@@ -33,6 +26,7 @@ class HasilPrediksiController extends Controller
             'kapasitas_produksi' => 'required|numeric|min:0',
         ]);
 
+        // Cegah double input di tanggal & produk yang sama
         $exists = HasilPrediksi::where('id_produk', $request->id_produk)
             ->whereDate('tanggal', $request->tanggal)
             ->exists();
@@ -41,16 +35,17 @@ class HasilPrediksiController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->withErrors([
-                    'tanggal' => 'Prediksi untuk produk ini pada tanggal tersebut sudah pernah dibuat.'
+                    'tanggal' => 'Saran untuk produk ini pada tanggal tersebut sudah pernah dibuat.'
                 ]);
         }
 
         $produk   = Produk::with('kategori')->findOrFail($request->id_produk);
         $kategori = $produk->kategori;
 
-        // ================== MIN–MAX DINAMIS ==================
+        // ================== MIN–MAX DINAMIS dari Data Training ==================
         $trainingQuery = DataTraining::where('id_produk', $produk->id_produk);
 
+        // >0 supaya nilai 0 (tidak produksi / kosong) tidak ikut min-max
         $penjualanMin = (clone $trainingQuery)->where('penjualan', '>', 0)->min('penjualan');
         $penjualanMax = (clone $trainingQuery)->where('penjualan', '>', 0)->max('penjualan');
 
@@ -60,34 +55,55 @@ class HasilPrediksiController extends Controller
         $produksiMin  = (clone $trainingQuery)->where('hasil_produksi', '>', 0)->min('hasil_produksi');
         $produksiMax  = (clone $trainingQuery)->where('hasil_produksi', '>', 0)->max('hasil_produksi');
 
-        if (is_null($penjualanMin) || is_null($penjualanMax)) {
-            $penjualanMin = 0;
-            $penjualanMax = 1;
+        // fallback kalau kosong / tidak valid
+        if (is_null($penjualanMin) || is_null($penjualanMax) || $penjualanMax <= $penjualanMin) {
+            $penjualanMin = 0; $penjualanMax = 1;
         }
-        if (is_null($stokMin) || is_null($stokMax)) {
-            $stokMin = 0;
-            $stokMax = 1;
+        if (is_null($stokMin) || is_null($stokMax) || $stokMax <= $stokMin) {
+            $stokMin = 0; $stokMax = 1;
         }
-        if (is_null($produksiMin) || is_null($produksiMax)) {
-            $produksiMin = 0;
-            $produksiMax = 1;
+        if (is_null($produksiMin) || is_null($produksiMax) || $produksiMax <= $produksiMin) {
+            $produksiMin = 0; $produksiMax = 1;
         }
-
-        $minmax = [
-            'penjualan' => ['min' => $penjualanMin,                 'max' => $penjualanMax],
-            'waktu'     => ['min' => $kategori->waktu_min ?? 0,     'max' => $kategori->waktu_max ?? 1],
-            'stok'      => ['min' => $stokMin,                      'max' => $stokMax],
-            'kapasitas' => ['min' => $kategori->kapasitas_min ?? 0, 'max' => $kategori->kapasitas_max ?? 1],
-            'produksi'  => ['min' => $produksiMin,                  'max' => $produksiMax],
-        ];
 
         // ============== 1. INPUT CRISP ==============
         $input = [
-            'tanggal'            => $request->tanggal,                 // <-- DITAMBAH
+            'tanggal'            => $request->tanggal,
             'penjualan'          => (float) $request->penjualan,
             'waktu_produksi'     => (float) $request->waktu_produksi,
             'stok_barang_jadi'   => (float) $request->stok_barang_jadi,
             'kapasitas_produksi' => (float) $request->kapasitas_produksi,
+        ];
+        $kapasitasInput = $input['kapasitas_produksi'];
+
+        // batas atas produksi disesuaikan kapasitas
+        $produksiMaxEfektif = min((float) $produksiMax, $kapasitasInput);
+        if ($produksiMaxEfektif <= $produksiMin) {
+            // jaga-jaga biar tidak degenerate
+            $produksiMaxEfektif = $produksiMin + 1;
+        }
+
+        $minmax = [
+            'penjualan' => [
+                'min' => (float) $penjualanMin,
+                'max' => (float) $penjualanMax
+            ],
+            'waktu'     => [
+                'min' => (float) ($kategori->waktu_min ?? 0),
+                'max' => (float) ($kategori->waktu_max ?? 1)
+            ],
+            'stok'      => [
+                'min' => (float) $stokMin,
+                'max' => (float) $stokMax
+            ],
+            'kapasitas' => [
+                'min' => (float) ($kategori->kapasitas_min ?? 0),
+                'max' => (float) ($kategori->kapasitas_max ?? 1)
+            ],
+            'produksi'  => [
+                'min' => (float) $produksiMin,
+                'max' => (float) $produksiMaxEfektif, // ⚡ sudah dibatasi kapasitas
+            ],
         ];
 
         // ============== 2. FUZZYFIKASI ==============
@@ -112,15 +128,15 @@ class HasilPrediksiController extends Controller
 
         // ============== 3. RULE BASE (16 RULE) ==============
         $rules = [
-            ['kode' => 'R1',  'P' => 'tinggi',  'W' => 'cepat', 'S' => 'sedikit', 'K' => 'rendah', 'out' => 'sedikit'],
-            ['kode' => 'R2',  'P' => 'tinggi',  'W' => 'cepat', 'S' => 'sedikit', 'K' => 'tinggi', 'out' => 'banyak'],
-            ['kode' => 'R3',  'P' => 'tinggi',  'W' => 'cepat', 'S' => 'banyak',  'K' => 'rendah', 'out' => 'sedikit'],
-            ['kode' => 'R4',  'P' => 'tinggi',  'W' => 'cepat', 'S' => 'banyak',  'K' => 'tinggi', 'out' => 'sedikit'],
+            ['kode' => 'R1',  'P' => 'tinggi', 'W' => 'cepat', 'S' => 'sedikit', 'K' => 'rendah', 'out' => 'sedikit'],
+            ['kode' => 'R2',  'P' => 'tinggi', 'W' => 'cepat', 'S' => 'sedikit', 'K' => 'tinggi', 'out' => 'banyak'],
+            ['kode' => 'R3',  'P' => 'tinggi', 'W' => 'cepat', 'S' => 'banyak',  'K' => 'rendah', 'out' => 'sedikit'],
+            ['kode' => 'R4',  'P' => 'tinggi', 'W' => 'cepat', 'S' => 'banyak',  'K' => 'tinggi', 'out' => 'sedikit'],
 
-            ['kode' => 'R5',  'P' => 'tinggi',  'W' => 'lama',  'S' => 'sedikit', 'K' => 'rendah', 'out' => 'sedikit'],
-            ['kode' => 'R6',  'P' => 'tinggi',  'W' => 'lama',  'S' => 'sedikit', 'K' => 'tinggi', 'out' => 'sedikit'],
-            ['kode' => 'R7',  'P' => 'tinggi',  'W' => 'lama',  'S' => 'banyak',  'K' => 'rendah', 'out' => 'sedikit'],
-            ['kode' => 'R8',  'P' => 'tinggi',  'W' => 'lama',  'S' => 'banyak',  'K' => 'tinggi', 'out' => 'sedikit'],
+            ['kode' => 'R5',  'P' => 'tinggi', 'W' => 'lama',  'S' => 'sedikit', 'K' => 'rendah', 'out' => 'sedikit'],
+            ['kode' => 'R6',  'P' => 'tinggi', 'W' => 'lama',  'S' => 'sedikit', 'K' => 'tinggi', 'out' => 'sedikit'],
+            ['kode' => 'R7',  'P' => 'tinggi', 'W' => 'lama',  'S' => 'banyak',  'K' => 'rendah', 'out' => 'sedikit'],
+            ['kode' => 'R8',  'P' => 'tinggi', 'W' => 'lama',  'S' => 'banyak',  'K' => 'tinggi', 'out' => 'sedikit'],
 
             ['kode' => 'R9',  'P' => 'rendah', 'W' => 'cepat', 'S' => 'sedikit', 'K' => 'rendah', 'out' => 'sedikit'],
             ['kode' => 'R10', 'P' => 'rendah', 'W' => 'cepat', 'S' => 'sedikit', 'K' => 'tinggi', 'out' => 'sedikit'],
@@ -136,9 +152,10 @@ class HasilPrediksiController extends Controller
         $detailRules = [];
         $sumAlphaZ   = 0;
         $sumAlpha    = 0;
-        $minOut      = $minmax['produksi']['min'];
-        $maxOut      = $minmax['produksi']['max'];
-        $rangeOut    = $maxOut - $minOut;
+
+        $minOut   = (float) $minmax['produksi']['min'];
+        $maxOut   = (float) $minmax['produksi']['max']; // sudah efektif: <= kapasitas
+        $rangeOut = max($maxOut - $minOut, 0.0);
 
         foreach ($rules as $rule) {
             $alpha = min(
@@ -149,9 +166,9 @@ class HasilPrediksiController extends Controller
             );
 
             if ($rule['out'] === 'banyak') {
-                $z = $minOut + $alpha * $rangeOut;   // fungsi naik
+                $z = $minOut + $alpha * $rangeOut; // naik (monoton)
             } else {
-                $z = $maxOut - $alpha * $rangeOut;   // fungsi turun
+                $z = $maxOut - $alpha * $rangeOut; // turun (monoton)
             }
 
             $detailRules[] = [
@@ -170,31 +187,39 @@ class HasilPrediksiController extends Controller
         }
 
         // ============== 4. DEFUZZIFIKASI ==============
-        $zAkhir = $sumAlpha > 0 ? $sumAlphaZ / $sumAlpha : 0.0;
-        $zBulat = round($zAkhir);
+        $zAkhir = $sumAlpha > 0 ? ($sumAlphaZ / $sumAlpha) : 0.0;
+        $zBulat = (int) round($zAkhir);
+        if ($zBulat < 0) $zBulat = 0;
 
-        // simpan ke tabel hasil_prediksi (jumlah_produksi = nilai bulat)
+        // ================== SIMPAN + SNAPSHOT ==================
         HasilPrediksi::create([
             'id_produk'          => $produk->id_produk,
-            'tanggal'            => $request->tanggal,
+            'tanggal'            => $input['tanggal'],
             'penjualan'          => $input['penjualan'],
             'waktu_produksi'     => $input['waktu_produksi'],
             'stok_barang_jadi'   => $input['stok_barang_jadi'],
             'kapasitas_produksi' => $input['kapasitas_produksi'],
             'jumlah_produksi'    => $zBulat,
+
+            'detail_minmax'      => $minmax,
+            'detail_mu'          => $mu,
+            'detail_rules'       => $detailRules,
+            'detail_sum_alpha'   => $sumAlpha,
+            'detail_sum_alpha_z' => $sumAlphaZ,
+            'detail_z_akhir'     => $zAkhir,
         ]);
 
-        // semua hasil ke session
+        // simpan ke session (buat halaman hasil/detail)
         $hasil = [
-            'produk'       => $produk,
-            'input'        => $input,
-            'minmax'       => $minmax,
-            'mu'           => $mu,
-            'rules'        => $detailRules,
-            'z_akhir'      => $zAkhir,
-            'z_bulat'      => $zBulat,
-            'sum_alpha'    => $sumAlpha,
-            'sum_alpha_z'  => $sumAlphaZ,
+            'produk'      => $produk,
+            'input'       => $input,
+            'minmax'      => $minmax,
+            'mu'          => $mu,
+            'rules'       => $detailRules,
+            'z_akhir'     => $zAkhir,
+            'z_bulat'     => $zBulat,
+            'sum_alpha'   => $sumAlpha,
+            'sum_alpha_z' => $sumAlphaZ,
         ];
 
         session(['hasil_prediksi' => $hasil]);
@@ -205,40 +230,19 @@ class HasilPrediksiController extends Controller
     public function hasil()
     {
         $hasil = session('hasil_prediksi');
-
         if (!$hasil) {
-            return redirect()->route('prediksi.index')
-                ->with('error', 'Silakan lakukan prediksi terlebih dahulu.');
+            return redirect()->route('prediksi.index')->with('error', 'Silakan lakukan saran terlebih dahulu.');
         }
-
         return view('prediksi.hasil', compact('hasil'));
     }
 
     public function detail()
     {
         $hasil = session('hasil_prediksi');
-
         if (!$hasil) {
-            return redirect()->route('prediksi.index')
-                ->with('error', 'Silakan lakukan prediksi terlebih dahulu.');
+            return redirect()->route('prediksi.index')->with('error', 'Silakan lakukan saran terlebih dahulu.');
         }
-
         return view('prediksi.detail', compact('hasil'));
-    }
-
-    // ===== helper fungsi keanggotaan linear =====
-    private function muLow(float $x, float $min, float $max): float
-    {
-        if ($x <= $min) return 1.0;
-        if ($x >= $max) return 0.0;
-        return ($max - $x) / max($max - $min, 0.000001);
-    }
-
-    private function muHigh(float $x, float $min, float $max): float
-    {
-        if ($x <= $min) return 0.0;
-        if ($x >= $max) return 1.0;
-        return ($x - $min) / max($max - $min, 0.000001);
     }
 
     public function riwayat(Request $request)
@@ -257,59 +261,36 @@ class HasilPrediksiController extends Controller
         return view('prediksi.riwayat', compact('riwayat', 'produk'));
     }
 
-    public function formAktual($id)
-    {
-        $prediksi = HasilPrediksi::with('produk')->findOrFail($id);
-        return view('prediksi.aktual', compact('prediksi'));
-    }
-
-    /**
-     * SIMPAN HASIL AKTUAL + OTOMATIS TAMBAH STOK
-     */
-    public function updateAktual(Request $request, $id)
-    {
-        $request->validate([
-            'hasil_aktual' => 'required|numeric|min:0',
-        ]);
-
-        DB::transaction(function () use ($request, $id) {
-
-            $prediksi = HasilPrediksi::with('produk')->lockForUpdate()->findOrFail($id);
-
-            // simpan aktual (ini yang akan jadi training.hasil_produksi)
-            $prediksi->hasil_aktual = $request->hasil_aktual;
-            $prediksi->save();
-
-            // tambah stok produk langsung
-            $produk = Produk::lockForUpdate()->where('id_produk', $prediksi->id_produk)->first();
-            $stokSebelum = $produk->stok;
-
-            $produk->stok = $produk->stok + $request->hasil_aktual;
-            $produk->save();
-
-            // snapshot stok harian pada tanggal prediksi
-            StokHarian::updateOrCreate(
-                ['id_produk' => $produk->id_produk, 'tanggal' => $prediksi->tanggal],
-                [
-                    'stok_awal'  => StokHarian::where('id_produk',$produk->id_produk)
-                                    ->where('tanggal',$prediksi->tanggal)
-                                    ->value('stok_awal') ?? $stokSebelum,
-                    'stok_akhir' => $produk->stok,
-                ]
-            );
-        });
-
-        return redirect()->route('prediksi.riwayat')
-            ->with('success', 'Hasil aktual disimpan & stok otomatis bertambah');
-    }
-    
     public function detailById($id)
     {
         $prediksi = HasilPrediksi::with('produk.kategori')->findOrFail($id);
         $produk   = $prediksi->produk;
         $kategori = $produk->kategori;
 
-        // ================== MIN–MAX DINAMIS ==================
+        // ===================== 1. Kalau ada SNAPSHOT → pakai ini (tidak hitung ulang) =====================
+        if ($prediksi->detail_minmax && $prediksi->detail_mu && $prediksi->detail_rules) {
+            $hasil = [
+                'produk'      => $produk,
+                'input'       => [
+                    'tanggal'            => $prediksi->tanggal,
+                    'penjualan'          => (float) $prediksi->penjualan,
+                    'waktu_produksi'     => (float) $prediksi->waktu_produksi,
+                    'stok_barang_jadi'   => (float) $prediksi->stok_barang_jadi,
+                    'kapasitas_produksi' => (float) $prediksi->kapasitas_produksi,
+                ],
+                'minmax'      => $prediksi->detail_minmax,
+                'mu'          => $prediksi->detail_mu,
+                'rules'       => $prediksi->detail_rules,
+                'z_akhir'     => $prediksi->detail_z_akhir ?? 0,
+                'z_bulat'     => (int) $prediksi->jumlah_produksi,
+                'sum_alpha'   => $prediksi->detail_sum_alpha ?? 0,
+                'sum_alpha_z' => $prediksi->detail_sum_alpha_z ?? 0,
+            ];
+
+            return view('prediksi.detail', compact('hasil'));
+        }
+
+        // ===================== 2. Fallback (data lama tanpa snapshot) → hitung ulang =====================
         $trainingQuery = DataTraining::where('id_produk', $produk->id_produk);
 
         $penjualanMin = (clone $trainingQuery)->where('penjualan','>',0)->min('penjualan');
@@ -321,20 +302,10 @@ class HasilPrediksiController extends Controller
         $produksiMin = (clone $trainingQuery)->where('hasil_produksi','>',0)->min('hasil_produksi');
         $produksiMax = (clone $trainingQuery)->where('hasil_produksi','>',0)->max('hasil_produksi');
 
-        // fallback kalau null
-        if (is_null($penjualanMin) || is_null($penjualanMax)) { $penjualanMin = 0; $penjualanMax = 1; }
-        if (is_null($stokMin) || is_null($stokMax)) { $stokMin = 0; $stokMax = 1; }
-        if (is_null($produksiMin) || is_null($produksiMax)) { $produksiMin = 0; $produksiMax = 1; }
+        if (is_null($penjualanMin) || is_null($penjualanMax) || $penjualanMax <= $penjualanMin) { $penjualanMin = 0; $penjualanMax = 1; }
+        if (is_null($stokMin) || is_null($stokMax) || $stokMax <= $stokMin) { $stokMin = 0; $stokMax = 1; }
+        if (is_null($produksiMin) || is_null($produksiMax) || $produksiMax <= $produksiMin) { $produksiMin = 0; $produksiMax = 1; }
 
-        $minmax = [
-            'penjualan' => ['min'=>$penjualanMin,'max'=>$penjualanMax],
-            'waktu'     => ['min'=>$kategori->waktu_min ?? 0,'max'=>$kategori->waktu_max ?? 1],
-            'stok'      => ['min'=>$stokMin,'max'=>$stokMax],
-            'kapasitas' => ['min'=>$kategori->kapasitas_min ?? 0,'max'=>$kategori->kapasitas_max ?? 1],
-            'produksi'  => ['min'=>$produksiMin,'max'=>$produksiMax],
-        ];
-
-        // ================== INPUT ==================
         $input = [
             'tanggal'            => $prediksi->tanggal,
             'penjualan'          => (float) $prediksi->penjualan,
@@ -342,8 +313,21 @@ class HasilPrediksiController extends Controller
             'stok_barang_jadi'   => (float) $prediksi->stok_barang_jadi,
             'kapasitas_produksi' => (float) $prediksi->kapasitas_produksi,
         ];
+        $kapasitasInput = $input['kapasitas_produksi'];
 
-        // ================== FUZZYFIKASI ==================
+        $produksiMaxEfektif = min((float) $produksiMax, $kapasitasInput);
+        if ($produksiMaxEfektif <= $produksiMin) {
+            $produksiMaxEfektif = $produksiMin + 1;
+        }
+
+        $minmax = [
+            'penjualan' => ['min'=>(float)$penjualanMin,'max'=>(float)$penjualanMax],
+            'waktu'     => ['min'=>(float)($kategori->waktu_min ?? 0),'max'=>(float)($kategori->waktu_max ?? 1)],
+            'stok'      => ['min'=>(float)$stokMin,'max'=>(float)$stokMax],
+            'kapasitas' => ['min'=>(float)($kategori->kapasitas_min ?? 0),'max'=>(float)($kategori->kapasitas_max ?? 1)],
+            'produksi'  => ['min'=>(float)$produksiMin,'max'=>(float)$produksiMaxEfektif],
+        ];
+
         $mu = [
             'penjualan' => [
                 'rendah' => $this->muLow($input['penjualan'], $minmax['penjualan']['min'], $minmax['penjualan']['max']),
@@ -363,7 +347,6 @@ class HasilPrediksiController extends Controller
             ],
         ];
 
-        // ================== RULE BASE (16 RULE) ==================
         $rules = [
             ['kode'=>'R1','P'=>'tinggi','W'=>'cepat','S'=>'sedikit','K'=>'rendah','out'=>'sedikit'],
             ['kode'=>'R2','P'=>'tinggi','W'=>'cepat','S'=>'sedikit','K'=>'tinggi','out'=>'banyak'],
@@ -384,12 +367,12 @@ class HasilPrediksiController extends Controller
         ];
 
         $detailRules = [];
-        $sumAlphaZ = 0;
-        $sumAlpha  = 0;
+        $sumAlphaZ   = 0;
+        $sumAlpha    = 0;
 
-        $minOut   = $minmax['produksi']['min'];
-        $maxOut   = $minmax['produksi']['max'];
-        $rangeOut = $maxOut - $minOut;
+        $minOut   = (float)$minmax['produksi']['min'];
+        $maxOut   = (float)$minmax['produksi']['max']; // sudah <= kapasitas
+        $rangeOut = max($maxOut - $minOut, 0.0);
 
         foreach ($rules as $rule) {
             $alpha = min(
@@ -400,8 +383,8 @@ class HasilPrediksiController extends Controller
             );
 
             $z = ($rule['out'] === 'banyak')
-                ? $minOut + $alpha * $rangeOut
-                : $maxOut - $alpha * $rangeOut;
+                ? ($minOut + $alpha * $rangeOut)
+                : ($maxOut - $alpha * $rangeOut);
 
             $detailRules[] = [
                 'kode'  => $rule['kode'],
@@ -418,9 +401,8 @@ class HasilPrediksiController extends Controller
             $sumAlpha  += $alpha;
         }
 
-        $zAkhir = $sumAlpha > 0 ? $sumAlphaZ / $sumAlpha : 0.0;
+        $zAkhir = $sumAlpha > 0 ? ($sumAlphaZ / $sumAlpha) : 0.0;
 
-        // ✅ KUNCI: samakan key dengan yang dipakai detail.blade.php
         $hasil = [
             'produk'      => $produk,
             'input'       => $input,
@@ -428,7 +410,7 @@ class HasilPrediksiController extends Controller
             'mu'          => $mu,
             'rules'       => $detailRules,
             'z_akhir'     => $zAkhir,
-            'z_bulat'     => round($zAkhir),
+            'z_bulat'     => (int) $prediksi->jumlah_produksi,
             'sum_alpha'   => $sumAlpha,
             'sum_alpha_z' => $sumAlphaZ,
         ];
@@ -436,5 +418,18 @@ class HasilPrediksiController extends Controller
         return view('prediksi.detail', compact('hasil'));
     }
 
+    // ================= helper fungsi keanggotaan linear =================
+    private function muLow(float $x, float $min, float $max): float
+    {
+        if ($x <= $min) return 1.0;
+        if ($x >= $max) return 0.0;
+        return ($max - $x) / max($max - $min, 0.000001);
+    }
 
+    private function muHigh(float $x, float $min, float $max): float
+    {
+        if ($x <= $min) return 0.0;
+        if ($x >= $max) return 1.0;
+        return ($x - $min) / max($max - $min, 0.000001);
+    }
 }

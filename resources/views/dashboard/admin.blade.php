@@ -44,15 +44,15 @@
 
     <div class="hero">
         <div>
-            <h2>Ringkasan Penjualan</h2>
-            <p>Fokus: input dan pantau transaksi penjualan harian. (Admin)</p>
+            <h2>Ringkasan Data Training Harian</h2>
+            <p>Fokus: kelola, import, dan generate data training harian untuk perhitungan sistem. (Admin)</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <a href="{{ route('penjualan.index') }}" class="btn-solid">
-                <i class="fa fa-plus"></i> Input Penjualan
+            <a href="{{ route('training.harian.index') }}" class="btn-solid">
+                <i class="fa fa-database"></i> Kelola Training Harian
             </a>
-            <a href="{{ route('penjualan.riwayat') }}" class="btn-solid btn-outline">
-                <i class="fa fa-history"></i> Riwayat
+            <a href="{{ route('training.harian.template') }}" class="btn-solid btn-outline">
+                <i class="fa fa-download"></i> Download Template
             </a>
         </div>
     </div>
@@ -76,18 +76,21 @@
 
     <div class="kpi-grid">
         <div class="kpi">
-            <div class="label">Total Terjual Hari Ini</div>
-            <div class="value">{{ number_format($totalTerjualHariIni) }} kg</div>
+            <div class="label">Record Training Hari Ini</div>
+            <div class="value">{{ number_format($totalTrainingHariIni ?? 0) }}</div>
         </div>
         <div class="kpi">
-            <div class="label">Total Item Hari Ini</div>
-            <div class="value">{{ $totalItemHariIni }}</div>
+            <div class="label">Produk Tercakup Hari Ini</div>
+            <div class="value">{{ $totalProdukTrainingHariIni ?? 0 }}</div>
         </div>
     </div>
 
     <div class="section">
         <div class="head">
-            <h3><i class="fa fa-money"></i> Penjualan Terbaru</h3>
+            <h3><i class="fa fa-clock-o"></i> Training Harian Terbaru</h3>
+            <a href="{{ route('training.harian.index') }}" class="btn-solid btn-outline" style="padding:8px 12px!important;">
+                <i class="fa fa-arrow-right"></i> Ke Training Harian
+            </a>
         </div>
         <div class="body">
             <div class="table-responsive">
@@ -96,18 +99,26 @@
                         <tr>
                             <th>Tanggal</th>
                             <th>Produk</th>
-                            <th>Jumlah</th>
+                            <th>Penjualan</th>
+                            <th>Stok</th>
+                            <th>Hasil Produksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                    @forelse($latestSales as $s)
+                    @forelse($latestTraining ?? [] as $t)
                         <tr>
-                            <td>{{ \Carbon\Carbon::parse($s->tanggal)->format('d/m/Y') }}</td>
-                            <td><b>{{ $s->produk->nama_produk }}</b></td>
-                            <td><span class="badge badge-red">{{ number_format($s->jumlah) }} kg</span></td>
+                            <td>{{ \Carbon\Carbon::parse($t->tanggal)->format('d/m/Y') }}</td>
+                            <td><b>{{ $t->produk->nama_produk ?? '-' }}</b></td>
+                            <td>{{ number_format($t->penjualan) }} kg</td>
+                            <td>{{ number_format($t->stok_barang_jadi) }} kg</td>
+                            <td>{{ number_format($t->hasil_produksi) }} kg</td>
                         </tr>
                     @empty
-                        <tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:18px;">Belum ada data penjualan.</td></tr>
+                        <tr>
+                            <td colspan="5" style="text-align:center;color:#9ca3af;padding:18px;">
+                                Belum ada data training harian.
+                            </td>
+                        </tr>
                     @endforelse
                     </tbody>
                 </table>
