@@ -83,7 +83,12 @@ class DataTrainingController extends Controller
 
         $produk = Produk::findOrFail($request->id_produk);
 
-        $sheets = Excel::toArray([], $request->file('file'));
+        try {
+            $sheets = Excel::toArray([], $request->file('file'));
+        } catch (\Exception $e) {
+            return back()->with('error', 'File tidak dapat dibaca.');
+        }
+
         $rows   = $sheets[0] ?? [];
 
         if (count($rows) <= 2) {
@@ -102,29 +107,87 @@ class DataTrainingController extends Controller
             return back()->with('error', 'Template ini bukan untuk produk: '.$produk->nama_produk);
         }
 
+        // ========== VALIDASI FORMAT ANGKA (UNIVERSAL ERROR) ==========
+        $toString = function ($val): string {
+            if (is_null($val)) return '';
+            if (is_int($val) || is_float($val)) {
+                if (floor($val) == $val) {
+                    return (string) (int) $val;
+                }
+                return (string) $val;
+            }
+            return trim((string) $val);
+        };
+
+        // hanya terima 0 atau bilangan bulat positif tanpa leading zero
+        $isNonNegativeInt = function (string $v): bool {
+            return (bool) preg_match('/^(0|[1-9][0-9]*)$/', $v);
+        };
+
+        $hasInvalidNumber = false;
+
+        // loop dulu hanya untuk cek format angka
+        foreach ($rows as $index => $row) {
+            if ($index < 2) continue; // skip 2 baris awal (judul+kolom)
+
+            $tgl  = $toString($row[0] ?? '');
+            $penS = $toString($row[1] ?? '');
+            $stokS= $toString($row[2] ?? '');
+            $hasS = $toString($row[3] ?? '');
+
+            // cek baris kosong
+            $allEmpty =
+                ($tgl === '') &&
+                ($penS === '') &&
+                ($stokS === '') &&
+                ($hasS === '');
+
+            if ($allEmpty) continue;
+
+            // kalau ada isi tapi bukan angka valid -> langsung gagal
+            if (($penS !== '' && ! $isNonNegativeInt($penS)) ||
+                ($stokS !== '' && ! $isNonNegativeInt($stokS)) ||
+                ($hasS !== '' && ! $isNonNegativeInt($hasS))) {
+
+                $hasInvalidNumber = true;
+                break;
+            }
+        }
+
+        if ($hasInvalidNumber) {
+            // 🔔 pesan simpel seperti yang kamu minta
+            return back()->with('error', 'Format angka tidak valid.');
+        }
+
+        // ========== PROSES IMPORT (angka dipastikan sudah aman) ==========
         $inserted = 0;
         $updated  = 0;
         $skipped  = 0;
-
-        // untuk info tanggal di alert (ambil tanggal terakhir yang berhasil diproses)
         $tanggalInfo = null;
 
         foreach ($rows as $index => $row) {
             if ($index < 2) continue; // skip 2 baris awal (judul+kolom)
 
-            // skip baris kosong
+            $rawTanggal = $row[0] ?? null;
+
+            // pakai string yang sudah "aman" tadi
+            $penjualanStr      = $toString($row[1] ?? '');
+            $stokBarangStr     = $toString($row[2] ?? '');
+            $hasilProduksiStr  = $toString($row[3] ?? '');
+
+            // baris kosong?
             $allEmpty =
-                (!isset($row[0]) || $row[0] === null || $row[0] === '') &&
-                (!isset($row[1]) || $row[1] === null || $row[1] === '') &&
-                (!isset($row[2]) || $row[2] === null || $row[2] === '') &&
-                (!isset($row[3]) || $row[3] === null || $row[3] === '');
+                ($rawTanggal === null || $rawTanggal === '') &&
+                ($penjualanStr === '') &&
+                ($stokBarangStr === '') &&
+                ($hasilProduksiStr === '');
 
             if ($allEmpty) continue;
 
-            $rawTanggal     = $row[0] ?? null;
-            $penjualan      = (int)($row[1] ?? 0);
-            $stokBarangJadi = (int)($row[2] ?? 0);
-            $hasilProduksi  = (int)($row[3] ?? 0);
+            // konversi ke integer (kosong => 0)
+            $penjualan      = ($penjualanStr === '') ? 0 : (int) $penjualanStr;
+            $stokBarangJadi = ($stokBarangStr === '') ? 0 : (int) $stokBarangStr;
+            $hasilProduksi  = ($hasilProduksiStr === '') ? 0 : (int) $hasilProduksiStr;
 
             $tanggal = $this->normalizeExcelDate($rawTanggal);
             if (!$tanggal) {
@@ -169,14 +232,13 @@ class DataTrainingController extends Controller
         }
 
         return back()->with([
-            'import_success' => true,
-            'import_tanggal' => $tanggalInfo, // tanggal terakhir yang diproses
+            'import_success'  => true,
+            'import_tanggal'  => $tanggalInfo, // tanggal terakhir yang diproses
             'import_inserted' => $inserted,
             'import_updated'  => $updated,
             'import_skipped'  => $skipped,
         ]);
     }
-
 
     protected function normalizeExcelDate($value): ?string
     {

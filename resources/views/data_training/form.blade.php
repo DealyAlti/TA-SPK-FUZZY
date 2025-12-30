@@ -1,6 +1,6 @@
 <div class="modal fade" id="modal-form">
     <div class="modal-dialog">
-        <form class="modal-content" method="post" action="">
+        <form id="form-training" class="modal-content" method="post" action="">
             @csrf
             @method('post')
 

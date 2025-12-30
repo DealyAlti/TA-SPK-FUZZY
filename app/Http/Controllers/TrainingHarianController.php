@@ -54,6 +54,7 @@ class TrainingHarianController extends Controller
 
     /**
      * Import template (updateOrCreate per tanggal+produk)
+     * + validasi isi file angka (error universal)
      */
     public function import(Request $request)
     {
@@ -61,11 +62,39 @@ class TrainingHarianController extends Controller
             'file' => 'required|mimes:xlsx,xls,csv',
         ]);
 
-        $sheets = Excel::toArray([], $request->file('file'));
-        $rows   = $sheets[0] ?? [];
+        try {
+            $sheets = Excel::toArray([], $request->file('file'));
+        } catch (\Exception $e) {
+            return back()->with('error', 'File tidak dapat dibaca. Pastikan format Excel / CSV valid.');
+        }
 
+        $rows = $sheets[0] ?? [];
+
+        // minimal 3 baris: baris 0 (judul/tanggal), baris 1 (header), baris 2 (data)
         if (count($rows) < 3) {
-            return back()->with('error', 'File kosong / format tidak sesuai template.');
+            return back()->with('error', 'File kosong atau format tidak sesuai template.');
+        }
+
+        /**
+         * ====== VALIDASI HEADER (baris ke-2 = index 1) ======
+         * Ekspektasi:
+         *  A: Produk
+         *  B: Penjualan
+         *  C: Hasil Produksi
+         *  D: (optional) ID_PRODUK
+         */
+        $header = $rows[1] ?? [];
+        $colProduk    = strtolower(trim((string)($header[0] ?? '')));
+        $colPenjualan = strtolower(trim((string)($header[1] ?? '')));
+        $colHasil     = strtolower(trim((string)($header[2] ?? '')));
+
+        $headerOk =
+            (strpos($colProduk, 'produk') !== false) &&
+            (strpos($colPenjualan, 'penjualan') !== false) &&
+            (strpos($colHasil, 'hasil') !== false);
+
+        if (! $headerOk) {
+            return back()->with('error', 'Header kolom tidak sesuai template (harus: Produk, Penjualan, Hasil Produksi).');
         }
 
         // Tanggal ada di B1 (row 0 col 1)
@@ -82,34 +111,111 @@ class TrainingHarianController extends Controller
             return back()->with('error', "Tanggal {$tanggal} sudah pernah di-generate ke Data Training. Tidak bisa import ulang.");
         }
 
-        DB::transaction(function () use ($rows, $tanggal) {
+        // ====== VALIDASI ISI ANGKA (UNIVERSAL ERROR) ======
 
-            // data mulai baris ke-3 (index 2)
-            for ($i = 2; $i < count($rows); $i++) {
+        $validRows       = [];
+        $totalBarisData  = 0;
+        $hasInvalidNumber = false;
 
-                $namaProduk = trim((string)($rows[$i][0] ?? ''));
-                $penjualan  = (int)($rows[$i][1] ?? 0);
-                $hasil      = (int)($rows[$i][2] ?? 0);
-
-                // kolom hidden ID_PRODUK (index 3) kalau ada
-                $idProdukFromFile = $rows[$i][3] ?? null;
-
-                if ($namaProduk === '' && empty($idProdukFromFile)) {
-                    continue;
+        // helper: normalisasi nilai excel ke string
+        $toString = function ($val): string {
+            if (is_null($val)) return '';
+            if (is_int($val) || is_float($val)) {
+                if (floor($val) == $val) {
+                    return (string) (int) $val;
                 }
+                return (string) $val;
+            }
+            return trim((string) $val);
+        };
+
+        // regex: 0 atau bilangan bulat positif tanpa leading zero
+        $isNonNegativeInt = function (string $v): bool {
+            return (bool) preg_match('/^(0|[1-9][0-9]*)$/', $v);
+        };
+
+        for ($i = 2; $i < count($rows); $i++) {
+
+            $namaProduk = $toString($rows[$i][0] ?? '');
+            $penjualanS = $toString($rows[$i][1] ?? '');
+            $hasilS     = $toString($rows[$i][2] ?? '');
+            $idProdukFromFile = $rows[$i][3] ?? null;
+
+            // kalau semua kolom kosong -> skip
+            $isSemuaKosong =
+                ($namaProduk === '') &&
+                ($penjualanS === '') &&
+                ($hasilS === '') &&
+                (empty($idProdukFromFile));
+
+            if ($isSemuaKosong) {
+                continue;
+            }
+
+            $totalBarisData++;
+
+            // cek format angka: kalau ada 1 saja yang tidak valid, tandai & break
+            if ($penjualanS === '' || ! $isNonNegativeInt($penjualanS) ||
+                $hasilS === '' || ! $isNonNegativeInt($hasilS)) {
+
+                $hasInvalidNumber = true;
+                break;
+            }
+
+            // simpan untuk diproses ke DB nanti
+            $validRows[] = [
+                'nama'        => $namaProduk,
+                'penjualan_s' => $penjualanS,
+                'hasil_s'     => $hasilS,
+                'id_file'     => $idProdukFromFile,
+            ];
+        }
+
+        // kalau ada angka yang formatnya tidak valid -> error universal
+        if ($hasInvalidNumber) {
+            return back()->with('error',
+                'Format angka tidak valid.'
+            );
+        }
+
+        // kalau tidak ada satu pun baris data
+        if ($totalBarisData === 0 || empty($validRows)) {
+            return back()->with('error',
+                'Tidak ada baris data yang bisa diproses. Pastikan Produk, Penjualan, dan Hasil Produksi sudah diisi.'
+            );
+        }
+
+        // ====== MASUK DB (semua data numeric sudah dipastikan aman) ======
+
+        $jumlahDipakai       = 0;
+        $jumlahProdukUnknown = 0;
+
+        DB::transaction(function () use ($validRows, $tanggal, &$jumlahDipakai, &$jumlahProdukUnknown) {
+
+            foreach ($validRows as $r) {
+
+                $namaProduk       = $r['nama'];
+                $penjualan        = (int) $r['penjualan_s'];
+                $hasil            = (int) $r['hasil_s'];
+                $idProdukFromFile = $r['id_file'];
 
                 $produk = null;
 
+                // 1) coba dari ID_PRODUK yang disembunyikan di template
                 if (!empty($idProdukFromFile)) {
                     $produk = Produk::where('id_produk', (int)$idProdukFromFile)->first();
                 }
 
-                // fallback by nama
+                // 2) fallback by nama
                 if (!$produk && $namaProduk !== '') {
                     $produk = Produk::where('nama_produk', $namaProduk)->first();
                 }
 
-                if (!$produk) continue;
+                // kalau produk tetap tidak ketemu => skip, tapi dicatat
+                if (!$produk) {
+                    $jumlahProdukUnknown++;
+                    continue;
+                }
 
                 TrainingHarian::updateOrCreate(
                     [
@@ -117,16 +223,38 @@ class TrainingHarianController extends Controller
                         'id_produk' => $produk->id_produk,
                     ],
                     [
-                        'penjualan'      => max(0, $penjualan),
-                        'hasil_produksi' => max(0, $hasil),
+                        'penjualan'      => $penjualan,
+                        'hasil_produksi' => $hasil,
                     ]
                 );
+
+                $jumlahDipakai++;
             }
         });
 
+        if ($jumlahDipakai === 0) {
+            if ($jumlahProdukUnknown > 0) {
+                return back()->with('error',
+                    'Tidak ada data yang bisa disimpan karena produk pada file tidak cocok dengan data master produk di sistem.'
+                );
+            }
+
+            return back()->with('error',
+                'Tidak ada baris data yang berhasil disimpan. Periksa kembali isi file.'
+            );
+        }
+
+        // susun pesan sukses (juga universal & singkat)
+        $message = "Import training harian berhasil untuk tanggal {$tanggal}.\n";
+        $message .= "Data tersimpan / ter-update: {$jumlahDipakai} produk.";
+
+        if ($jumlahProdukUnknown > 0) {
+            $message .= "\nSebagian baris dilewati karena nama/ID produk tidak ditemukan di master.";
+        }
+
         return redirect()
             ->route('training.harian.index', ['tanggal' => $tanggal])
-            ->with('success', "Import berhasil untuk tanggal {$tanggal}. (Jika sudah ada, otomatis UPDATE)");
+            ->with('success', $message);
     }
 
     /**
@@ -220,7 +348,6 @@ class TrainingHarianController extends Controller
                 "Generate berhasil ({$tanggal}). Masuk Data Training: {$inserted} produk. Dilewati (0 & 0): {$skipped} produk."
             );
     }
-
 
     protected function normalizeExcelDate($value): ?string
     {

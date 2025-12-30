@@ -14,7 +14,9 @@
     <div class="col-lg-12">
         <div class="box">
             <div class="box-header with-border">
-                <button onclick="addForm('{{ route('kategori.store') }}')" class="btn btn-success btn-s btn-flat"><i class="fa fa-plus-circle"></i> Tambah Kategori</button>
+                <button onclick="addForm('{{ route('kategori.store') }}')" class="btn btn-success btn-s btn-flat">
+                    <i class="fa fa-plus-circle"></i> Tambah Kategori
+                </button>
             </div>
             <div class="box-body table-responsive">
                 <table class="table table-stiped table-bordered">
@@ -32,7 +34,6 @@
 </div>
 
 @includeIf('kategori.form')
-
 
 @endsection
 
@@ -58,12 +59,24 @@
             ]
         });
 
+        // ================================
+        // SUBMIT FORM TAMBAH / EDIT
+        // ================================
         $('#modal-form').validator().on('submit', function (e) {
             if (! e.preventDefault()) {
+
                 $.post($('#modal-form form').attr('action'), $('#modal-form form').serialize())
                     .done((response) => {
                         $('#modal-form').modal('hide');
                         table.ajax.reload();
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil',
+                            text: 'Data kategori berhasil disimpan.',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#4f9b8f',
+                        });
                     })
                     .fail((xhr) => {
                         if (xhr.status === 422) {
@@ -80,7 +93,6 @@
                                     icon: 'error',
                                     title: 'Gagal Menyimpan',
                                     text: 'Data tidak valid',
-
                                 });
                             }
                         } else {
@@ -131,7 +143,6 @@
     }
 
     function deleteData(url) {
-        // Show SweetAlert2 confirmation modal before deletion
         Swal.fire({
             title: 'Apakah Anda yakin?',
             text: "Anda tidak akan bisa mengembalikan data yang dihapus!",
@@ -141,7 +152,7 @@
             cancelButtonColor: '#d33',
             confirmButtonText: 'Ya, hapus!',
             cancelButtonText: 'Batal',
-            iconColor: '#28a745',  // Change the color of the icon
+            iconColor: '#28a745',
             customClass: {
                 popup: 'swal-popup-large',
                 title: 'swal-title-large',
@@ -152,19 +163,17 @@
             didOpen: () => {
                 const swalTitle = document.querySelector('.swal-title');
                 const swalContent = document.querySelector('.swal-content');
-                swalTitle.style.fontSize = '60px';  // Larger title font size
-                swalContent.style.fontSize = '25px';  // Larger content font size
+                if (swalTitle) swalTitle.style.fontSize = '60px';
+                if (swalContent) swalContent.style.fontSize = '25px';
             }
         }).then((result) => {
             if (result.isConfirmed) {
-                // Proceed with deletion if confirmed
                 $.post(url, {
                         '_token': $('[name=csrf-token]').attr('content'),
                         '_method': 'delete'
                     })
                     .done((response) => {
                         table.ajax.reload();
-                        // Show success message after deletion
                         Swal.fire({
                             icon: 'success',
                             title: 'Berhasil',
@@ -175,7 +184,6 @@
                         });
                     })
                     .fail((errors) => {
-                        // Show error message if deletion fails
                         Swal.fire({
                             icon: 'error',
                             title: 'Oops...',
@@ -187,10 +195,5 @@
             }
         });
     }
-
-    
-
 </script>
-
-
 @endpush

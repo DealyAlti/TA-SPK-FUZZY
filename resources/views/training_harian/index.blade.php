@@ -71,7 +71,7 @@
     display:flex;
     gap:12px;
     flex-wrap:wrap;
-    align-items:center; /* ⬅️ INI KUNCI */
+    align-items:center;
     margin-bottom:14px;
 }
 
@@ -99,16 +99,6 @@
 <div class="row">
 <div class="col-lg-12">
 
-    @if(session('success'))
-        <div class="alert alert-success"><i class="fa fa-check-circle"></i> {{ session('success') }}</div>
-    @endif
-    @if(session('info'))
-        <div class="alert alert-info"><i class="fa fa-info-circle"></i> {{ session('info') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger"><i class="fa fa-warning"></i> {{ session('error') }}</div>
-    @endif
-
     <div class="box-soft">
         <div class="box-head">
             <h3><i class="fa fa-calendar"></i> Training Harian (Import Template → Draft → Generate)</h3>
@@ -135,14 +125,17 @@
             </form>
 
             {{-- IMPORT --}}
-            <form method="POST" action="{{ route('training.harian.import') }}" enctype="multipart/form-data"class="import-row">
+            <form method="POST"
+                  action="{{ route('training.harian.import') }}"
+                  enctype="multipart/form-data"
+                  class="import-row">
               @csrf
 
               <div class="import-col-file">
                   <label style="font-weight:900;color:#111827;">Import Template (xlsx)</label>
                   <input type="file" name="file" class="form-control input-h48" required>
                   <small class="text-muted">
-                      Isi tanggal di <b>B1</b>, lalu isi Penjualan & Hasil Produksi. Import ulang akan <b>UPDATE</b> draft.
+                      Isi tanggal di <b>B1</b>, lalu isi Penjualan &amp; Hasil Produksi. Import ulang akan <b>UPDATE</b> draft.
                   </small>
               </div>
 
@@ -209,7 +202,7 @@
                 <button type="submit" class="btn btn-red"
                         onclick="return confirm('Generate draft tanggal {{ $tanggal }} ke Data Training? Setelah generate, draft tanggal ini akan terkunci.');"
                         {{ $sudahGenerate ? 'disabled' : '' }}>
-                    <i class="fa fa-cogs"></i> Generate ke Data Training & Update Stok
+                    <i class="fa fa-cogs"></i> Generate ke Data Training &amp; Update Stok
                 </button>
             </form>
 
@@ -219,3 +212,46 @@
 </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    $(function () {
+
+        // ===== NOTIF VALIDASI LARAVEL =====
+        @if ($errors->any())
+            Swal.fire({
+                icon: 'error',
+                title: 'Validasi Gagal',
+                html: `{!! implode('<br>', $errors->all()) !!}`
+            });
+        @endif
+
+        // ===== FLASH MESSAGE: ERROR =====
+        @if (session('error'))
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                html: `{!! nl2br(e(session('error'))) !!}`
+            });
+        @endif
+
+        // ===== FLASH MESSAGE: INFO =====
+        @if (session('info'))
+            Swal.fire({
+                icon: 'info',
+                title: 'Informasi',
+                html: `{!! nl2br(e(session('info'))) !!}`
+            });
+        @endif
+
+        // ===== FLASH MESSAGE: SUCCESS =====
+        @if (session('success'))
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil',
+                html: `{!! nl2br(e(session('success'))) !!}`
+            });
+        @endif
+    });
+</script>
+@endpush

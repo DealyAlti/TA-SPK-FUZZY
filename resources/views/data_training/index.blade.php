@@ -93,8 +93,6 @@
     </div>
 </div>
 
-
-
 {{-- =========================
    ✅ MODAL IMPORT
 ========================= --}}
@@ -173,6 +171,9 @@
         </div>
     </div>
 </div>
+
+{{-- ➕ include modal form manual --}}
+@includeIf('training.form')
 
 @endsection
 
@@ -346,29 +347,6 @@
         .row-actions{ flex-direction:column; align-items:stretch; }
         .row-actions > [class*="col-"]{ width:100%; }
     }
-    /* ===== Header Merah Solid ala Training Harian ===== */
-    .header-red-solid{
-        background: linear-gradient(90deg, #b91c1c 0%, #991b1b 100%) !important;
-        padding:20px 24px !important;
-        border-bottom:none !important;
-    }
-
-    .header-red-solid .box-title{
-        margin:0;
-        color:#ffffff !important;
-        font-weight:800;
-        font-size:18px;
-        display:flex;
-        align-items:center;
-        gap:10px;
-        letter-spacing:.2px;
-    }
-
-    .header-red-solid .box-title i{
-        font-size:18px;
-        color:#ffffff;
-    }
-    
 </style>
 @endpush
 
@@ -439,6 +417,48 @@
             const url = '{{ route("training.template", ":id") }}'.replace(':id', selectedProduct);
             window.location = url;
         });
+
+        // ===================================
+        // 🔔 SWEETALERT DARI FLASH / ERRORS
+        // ===================================
+
+        @if ($errors->any())
+            Swal.fire({
+                icon: 'error',
+                title: 'Validasi Gagal',
+                html: `{!! implode('<br>', $errors->all()) !!}`
+            });
+        @endif
+
+        @if (session('error'))
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: '{{ session('error') }}'
+            });
+        @endif
+
+        @if (session('info'))
+            Swal.fire({
+                icon: 'info',
+                title: 'Informasi',
+                text: '{{ session('info') }}'
+            });
+        @endif
+
+        @if (session('import_success'))
+            Swal.fire({
+                icon: 'success',
+                title: 'Import Berhasil',
+                html: `
+                    Data training berhasil diimport.<br><br>
+                    <b>Tanggal terakhir diproses:</b> {{ session('import_tanggal') ?? '-' }}<br>
+                    <b>Data baru:</b> {{ session('import_inserted') }} baris<br>
+                    <b>Data diupdate:</b> {{ session('import_updated') }} baris<br>
+                    <b>Dilewati:</b> {{ session('import_skipped') }} baris
+                `
+            });
+        @endif
     });
 
     // ====== DELETE DATA (dipanggil dari kolom aksi) ======
@@ -459,13 +479,20 @@
             })
             .done(() => {
                 if (table) table.ajax.reload(null, false);
-                Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Data training berhasil dihapus' });
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: 'Data training berhasil dihapus'
+                });
             })
             .fail(() => {
-                Swal.fire({ icon: 'error', title: 'Gagal', text: 'Tidak dapat menghapus data' });
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: 'Tidak dapat menghapus data'
+                });
             });
         });
     }
 </script>
 @endpush
-
