@@ -251,8 +251,18 @@ class HasilPrediksiController extends Controller
             ->orderBy('tanggal', 'desc')
             ->orderBy('id_hasil_prediksi', 'desc');
 
+        // filter produk
         if ($request->filled('id_produk')) {
             $query->where('id_produk', $request->id_produk);
+        }
+
+        // ✅ filter tanggal (from - to)
+        if ($request->filled('from')) {
+            $query->whereDate('tanggal', '>=', $request->from);
+        }
+
+        if ($request->filled('to')) {
+            $query->whereDate('tanggal', '<=', $request->to);
         }
 
         $riwayat = $query->paginate(15)->withQueryString();
@@ -260,6 +270,7 @@ class HasilPrediksiController extends Controller
 
         return view('prediksi.riwayat', compact('riwayat', 'produk'));
     }
+
 
     public function detailById($id)
     {
@@ -432,4 +443,175 @@ class HasilPrediksiController extends Controller
         if ($x >= $max) return 1.0;
         return ($x - $min) / max($max - $min, 0.000001);
     }
+    public function edit($id)
+    {
+        $prediksi = HasilPrediksi::with('produk.kategori')->findOrFail($id);
+
+        // hanya owner
+        if (auth()->user()->level != 0) {
+            abort(403);
+        }
+
+        // stok TIDAK ambil dari produk -> pakai snapshot yang tersimpan
+        $stokSnapshot = (float) $prediksi->stok_barang_jadi;
+
+        return view('prediksi.edit', compact('prediksi', 'stokSnapshot'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $prediksi = HasilPrediksi::with('produk.kategori')->findOrFail($id);
+
+        if (auth()->user()->level != 0) {
+            abort(403);
+        }
+
+        $request->validate([
+            'penjualan'          => 'required|numeric|min:0',
+            'waktu_produksi'     => 'required|numeric|min:0',
+            'kapasitas_produksi' => 'required|numeric|min:0',
+        ]);
+
+        $produk   = $prediksi->produk;
+        $kategori = $produk->kategori;
+
+        // ✅ stok jangan ambil dari produk, pakai snapshot riwayat
+        $stokSnapshot = (float) $prediksi->stok_barang_jadi;
+
+        // ================== MIN–MAX DINAMIS dari Data Training ==================
+        $trainingQuery = DataTraining::where('id_produk', $produk->id_produk);
+
+        $penjualanMin = (clone $trainingQuery)->where('penjualan', '>', 0)->min('penjualan');
+        $penjualanMax = (clone $trainingQuery)->where('penjualan', '>', 0)->max('penjualan');
+
+        $stokMin = (clone $trainingQuery)->where('stok_barang_jadi', '>', 0)->min('stok_barang_jadi');
+        $stokMax = (clone $trainingQuery)->where('stok_barang_jadi', '>', 0)->max('stok_barang_jadi');
+
+        $produksiMin = (clone $trainingQuery)->where('hasil_produksi', '>', 0)->min('hasil_produksi');
+        $produksiMax = (clone $trainingQuery)->where('hasil_produksi', '>', 0)->max('hasil_produksi');
+
+        if (is_null($penjualanMin) || is_null($penjualanMax) || $penjualanMax <= $penjualanMin) { $penjualanMin = 0; $penjualanMax = 1; }
+        if (is_null($stokMin) || is_null($stokMax) || $stokMax <= $stokMin) { $stokMin = 0; $stokMax = 1; }
+        if (is_null($produksiMin) || is_null($produksiMax) || $produksiMax <= $produksiMin) { $produksiMin = 0; $produksiMax = 1; }
+
+        $input = [
+            'tanggal'            => $prediksi->tanggal, // tanggal tetap
+            'penjualan'          => (float) $request->penjualan,
+            'waktu_produksi'     => (float) $request->waktu_produksi,
+            'stok_barang_jadi'   => $stokSnapshot, // ✅ tetap snapshot
+            'kapasitas_produksi' => (float) $request->kapasitas_produksi,
+        ];
+
+        $kapasitasInput = $input['kapasitas_produksi'];
+
+        $produksiMaxEfektif = min((float) $produksiMax, $kapasitasInput);
+        if ($produksiMaxEfektif <= $produksiMin) {
+            $produksiMaxEfektif = $produksiMin + 1;
+        }
+
+        $minmax = [
+            'penjualan' => ['min' => (float) $penjualanMin, 'max' => (float) $penjualanMax],
+            'waktu'     => ['min' => (float) ($kategori->waktu_min ?? 0), 'max' => (float) ($kategori->waktu_max ?? 1)],
+            'stok'      => ['min' => (float) $stokMin, 'max' => (float) $stokMax],
+            'kapasitas' => ['min' => (float) ($kategori->kapasitas_min ?? 0), 'max' => (float) ($kategori->kapasitas_max ?? 1)],
+            'produksi'  => ['min' => (float) $produksiMin, 'max' => (float) $produksiMaxEfektif],
+        ];
+
+        $mu = [
+            'penjualan' => [
+                'rendah' => $this->muLow($input['penjualan'], $minmax['penjualan']['min'], $minmax['penjualan']['max']),
+                'tinggi' => $this->muHigh($input['penjualan'], $minmax['penjualan']['min'], $minmax['penjualan']['max']),
+            ],
+            'waktu' => [
+                'cepat' => $this->muLow($input['waktu_produksi'], $minmax['waktu']['min'], $minmax['waktu']['max']),
+                'lama'  => $this->muHigh($input['waktu_produksi'], $minmax['waktu']['min'], $minmax['waktu']['max']),
+            ],
+            'stok' => [
+                'sedikit' => $this->muLow($input['stok_barang_jadi'], $minmax['stok']['min'], $minmax['stok']['max']),
+                'banyak'  => $this->muHigh($input['stok_barang_jadi'], $minmax['stok']['min'], $minmax['stok']['max']),
+            ],
+            'kapasitas' => [
+                'rendah' => $this->muLow($input['kapasitas_produksi'], $minmax['kapasitas']['min'], $minmax['kapasitas']['max']),
+                'tinggi' => $this->muHigh($input['kapasitas_produksi'], $minmax['kapasitas']['min'], $minmax['kapasitas']['max']),
+            ],
+        ];
+
+        $rules = [
+            ['kode'=>'R1','P'=>'tinggi','W'=>'cepat','S'=>'sedikit','K'=>'rendah','out'=>'sedikit'],
+            ['kode'=>'R2','P'=>'tinggi','W'=>'cepat','S'=>'sedikit','K'=>'tinggi','out'=>'banyak'],
+            ['kode'=>'R3','P'=>'tinggi','W'=>'cepat','S'=>'banyak','K'=>'rendah','out'=>'sedikit'],
+            ['kode'=>'R4','P'=>'tinggi','W'=>'cepat','S'=>'banyak','K'=>'tinggi','out'=>'sedikit'],
+            ['kode'=>'R5','P'=>'tinggi','W'=>'lama','S'=>'sedikit','K'=>'rendah','out'=>'sedikit'],
+            ['kode'=>'R6','P'=>'tinggi','W'=>'lama','S'=>'sedikit','K'=>'tinggi','out'=>'sedikit'],
+            ['kode'=>'R7','P'=>'tinggi','W'=>'lama','S'=>'banyak','K'=>'rendah','out'=>'sedikit'],
+            ['kode'=>'R8','P'=>'tinggi','W'=>'lama','S'=>'banyak','K'=>'tinggi','out'=>'sedikit'],
+            ['kode'=>'R9','P'=>'rendah','W'=>'cepat','S'=>'sedikit','K'=>'rendah','out'=>'sedikit'],
+            ['kode'=>'R10','P'=>'rendah','W'=>'cepat','S'=>'sedikit','K'=>'tinggi','out'=>'sedikit'],
+            ['kode'=>'R11','P'=>'rendah','W'=>'cepat','S'=>'banyak','K'=>'rendah','out'=>'sedikit'],
+            ['kode'=>'R12','P'=>'rendah','W'=>'cepat','S'=>'banyak','K'=>'tinggi','out'=>'sedikit'],
+            ['kode'=>'R13','P'=>'rendah','W'=>'lama','S'=>'sedikit','K'=>'rendah','out'=>'sedikit'],
+            ['kode'=>'R14','P'=>'rendah','W'=>'lama','S'=>'sedikit','K'=>'tinggi','out'=>'sedikit'],
+            ['kode'=>'R15','P'=>'rendah','W'=>'lama','S'=>'banyak','K'=>'rendah','out'=>'sedikit'],
+            ['kode'=>'R16','P'=>'rendah','W'=>'lama','S'=>'banyak','K'=>'tinggi','out'=>'sedikit'],
+        ];
+
+        $detailRules = [];
+        $sumAlphaZ   = 0;
+        $sumAlpha    = 0;
+
+        $minOut   = (float) $minmax['produksi']['min'];
+        $maxOut   = (float) $minmax['produksi']['max'];
+        $rangeOut = max($maxOut - $minOut, 0.0);
+
+        foreach ($rules as $rule) {
+            $alpha = min(
+                $mu['penjualan'][$rule['P']],
+                $mu['waktu'][$rule['W']],
+                $mu['stok'][$rule['S']],
+                $mu['kapasitas'][$rule['K']]
+            );
+
+            $z = ($rule['out'] === 'banyak')
+                ? ($minOut + $alpha * $rangeOut)
+                : ($maxOut - $alpha * $rangeOut);
+
+            $detailRules[] = [
+                'kode'  => $rule['kode'],
+                'P'     => $rule['P'],
+                'W'     => $rule['W'],
+                'S'     => $rule['S'],
+                'K'     => $rule['K'],
+                'out'   => $rule['out'],
+                'alpha' => $alpha,
+                'z'     => $z,
+            ];
+
+            $sumAlphaZ += $alpha * $z;
+            $sumAlpha  += $alpha;
+        }
+
+        $zAkhir = $sumAlpha > 0 ? ($sumAlphaZ / $sumAlpha) : 0.0;
+        $zBulat = (int) round($zAkhir);
+        if ($zBulat < 0) $zBulat = 0;
+
+        $prediksi->update([
+            'penjualan'          => $input['penjualan'],
+            'waktu_produksi'     => $input['waktu_produksi'],
+            'stok_barang_jadi'   => $stokSnapshot, // ✅ tidak berubah
+            'kapasitas_produksi' => $input['kapasitas_produksi'],
+            'jumlah_produksi'    => $zBulat,
+
+            'detail_minmax'      => $minmax,
+            'detail_mu'          => $mu,
+            'detail_rules'       => $detailRules,
+            'detail_sum_alpha'   => $sumAlpha,
+            'detail_sum_alpha_z' => $sumAlphaZ,
+            'detail_z_akhir'     => $zAkhir,
+        ]);
+
+        return redirect()
+            ->route('prediksi.riwayat')
+            ->with('success', 'Data riwayat berhasil diupdate.');
+    }
+
 }

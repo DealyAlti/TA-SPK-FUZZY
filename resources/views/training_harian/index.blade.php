@@ -160,6 +160,7 @@
                         <tr>
                             <th style="width:60px;">No</th>
                             <th>Produk</th>
+                            <th style="width:160px;text-align:center;">Stok</th>
                             <th style="width:160px;text-align:center;">Penjualan</th>
                             <th style="width:180px;text-align:center;">Hasil Produksi</th>
                             <th style="width:160px;text-align:center;">Status</th>
@@ -173,6 +174,9 @@
                             <tr>
                                 <td>{{ $i+1 }}</td>
                                 <td><b>{{ $p->nama_produk }}</b></td>
+                                <td style="text-align:center;">
+                                    {{ number_format($stokAwalMap[$p->id_produk] ?? 0) }} kg
+                                </td>
                                 <td style="text-align:center;">
                                     {{ $d ? number_format($d->penjualan) : 0 }} kg
                                 </td>
@@ -188,7 +192,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="text-center text-muted">Belum ada produk.</td></tr>
+                            <tr><td colspan="6" class="text-center text-muted">Belum ada produk.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

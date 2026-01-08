@@ -93,6 +93,8 @@ Route::middleware('auth')->group(function () {
         // PREDIKSI (owner boleh hitung)
         Route::get('/prediksi', [HasilPrediksiController::class, 'index'])->name('prediksi.index');
         Route::post('/prediksi/hitung', [HasilPrediksiController::class, 'hitung'])->name('prediksi.hitung');
+        Route::get('/prediksi/{id}/edit', [HasilPrediksiController::class, 'edit'])->name('prediksi.edit');
+        Route::put('/prediksi/{id}', [HasilPrediksiController::class, 'update'])->name('prediksi.update');
     });
 
 });

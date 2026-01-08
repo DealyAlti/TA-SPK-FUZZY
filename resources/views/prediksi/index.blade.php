@@ -17,7 +17,13 @@
                     <span class="title-icon"><i class="fa fa-calculator"></i></span>
                     Input Data Perhitungan
                 </h3>
-                <p class="header-sub">Isi data sesuai kondisi hari ini untuk menghasilkan saran jumlah produksi.</p>
+
+                <p class="header-sub">
+                    Isi data sesuai kondisi hari ini untuk menghasilkan saran jumlah produksi.
+                    <span class="sub-note">
+                        <b>Catatan:</b> “Penjualan” di halaman ini = <b>pesanan masuk</b>. Sedangkan “Penjualan” pada template Excel Data Training = <b>jumlah terjual</b>.
+                    </span>
+                </p>
             </div>
 
             <div class="box-body body-soft">
@@ -36,7 +42,7 @@
                     </div>
                 @endif
 
-                <form action="{{ route('prediksi.hitung') }}" method="post">
+                <form action="{{ route('prediksi.hitung') }}" method="post" id="formPrediksi">
                     @csrf
 
                     <div class="row">
@@ -47,7 +53,9 @@
                                 <select id="produk" name="id_produk" class="form-control input-modern" required>
                                     <option value="">Pilih Produk</option>
                                     @foreach ($produk as $p)
-                                        <option value="{{ $p->id_produk }}" {{ old('id_produk') == $p->id_produk ? 'selected' : '' }}>
+                                        <option value="{{ $p->id_produk }}"
+                                                data-stok="{{ (int)($p->stok ?? 0) }}"
+                                                {{ old('id_produk') == $p->id_produk ? 'selected' : '' }}>
                                             {{ $p->nama_produk }}
                                         </option>
                                     @endforeach
@@ -67,10 +75,15 @@
                             </div>
                         </div>
 
-                        {{-- PENJUALAN --}}
+                        {{-- PENJUALAN (pesanan masuk) --}}
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label class="control-label">Penjualan (kg)</label>
+                                <label class="control-label">
+                                    Penjualan (kg)
+                                    <span class="hint">
+                                        = pesanan masuk hari ini (beda dengan Data Training: jumlah terjual)
+                                    </span>
+                                </label>
                                 <input type="number"
                                        name="penjualan"
                                        class="form-control input-modern"
@@ -94,16 +107,27 @@
                             </div>
                         </div>
 
-                        {{-- STOK --}}
+                        {{-- STOK BARANG JADI (AUTO, READONLY) --}}
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label class="control-label">Stok Barang Jadi (kg)</label>
+                                <label class="control-label">
+                                    Stok Barang Jadi (kg)
+                                    <span class="hint">diambil otomatis dari stok produk</span>
+                                </label>
+
+                                {{-- tampilkan readonly --}}
                                 <input type="number"
-                                       name="stok_barang_jadi"
+                                       id="stok_display"
                                        class="form-control input-modern"
-                                       value="{{ old('stok_barang_jadi') }}"
+                                       value="{{ old('stok_barang_jadi', 0) }}"
                                        min="0"
-                                       required>
+                                       readonly>
+
+                                {{-- tetap dikirim ke controller --}}
+                                <input type="hidden"
+                                       id="stok_barang_jadi"
+                                       name="stok_barang_jadi"
+                                       value="{{ old('stok_barang_jadi', 0) }}">
                             </div>
                         </div>
 
@@ -177,9 +201,16 @@
 
 .header-sub{
     margin: 10px 0 0;
-    opacity: .9;
+    opacity: .95;
     font-weight: 600;
     font-size: 13px;
+    line-height: 1.4;
+}
+
+.sub-note{
+    display:block;
+    margin-top:6px;
+    opacity:.95;
 }
 
 .body-soft{
@@ -208,6 +239,19 @@
     font-weight: 800 !important;
     color: #374151 !important;
     margin-bottom: 8px !important;
+}
+
+.hint{
+    display:inline-block;
+    margin-left:8px;
+    font-weight:700;
+    font-size:12px;
+    color:#6b7280;
+}
+
+/* readonly look */
+#stok_display[readonly]{
+    background:#f9fafb !important;
 }
 
 /* ====== ALERT ====== */
@@ -263,4 +307,28 @@
 </style>
 @endpush
 
+@push('scripts')
+<script>
+(function(){
+    function setStokFromSelected(){
+        var select = document.getElementById('produk');
+        var opt = select && select.options[select.selectedIndex];
+        var stok = 0;
 
+        if (opt && opt.dataset && opt.dataset.stok !== undefined) {
+            stok = parseInt(opt.dataset.stok || '0', 10);
+            if (isNaN(stok) || stok < 0) stok = 0;
+        }
+
+        document.getElementById('stok_display').value = stok;
+        document.getElementById('stok_barang_jadi').value = stok;
+    }
+
+    document.addEventListener('DOMContentLoaded', function(){
+        setStokFromSelected();
+        var select = document.getElementById('produk');
+        if (select) select.addEventListener('change', setStokFromSelected);
+    });
+})();
+</script>
+@endpush

@@ -24,37 +24,68 @@ class TrainingHarianController extends Controller
             ->orderBy('id_produk', 'asc')
             ->get();
 
-        // map draft biar gampang dipakai di blade (key by id_produk)
+        // draft map (key by id_produk)
         $draftMap = $draft->keyBy('id_produk');
 
         // cek apakah sudah pernah digenerate ke data_training
         $sudahGenerate = DataTraining::whereDate('tanggal', $tanggal)->exists();
 
+        /**
+         * ===== STOK AWAL (STOK TERAKHIR SEBELUM TANGGAL TERPILIH) =====
+         * Tujuan: stok di tabel index TIDAK berubah walau draft di-import.
+         * stokAwal = stok_barang_jadi terakhir di DataTraining sebelum tanggal tsb,
+         * kalau belum ada -> fallback ke produk.stok.
+         */
+        $stokAwalMap = [];
+
+        $lastBefore = DataTraining::select('id_produk', 'stok_barang_jadi', 'tanggal', 'id_data_training')
+            ->where('tanggal', '<', $tanggal)
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('id_data_training', 'desc')
+            ->get()
+            ->unique('id_produk')
+            ->keyBy('id_produk');
+
+        foreach ($produk as $p) {
+            $stokAwalMap[$p->id_produk] = $lastBefore->has($p->id_produk)
+                ? (int) $lastBefore[$p->id_produk]->stok_barang_jadi
+                : (int) ($p->stok ?? 0);
+        }
+
         return view('training_harian.index', compact(
             'tanggal',
             'produk',
             'draftMap',
-            'sudahGenerate'
+            'sudahGenerate',
+            'stokAwalMap'
         ));
     }
 
     /**
-     * Export 1 template berisi semua produk + tanggal di B1
+     * Export 1 template berisi semua produk + tanggal
+     * Format kolom template:
+     * A: Produk
+     * B: Stok Terakhir (KG) [LOCKED]
+     * C: Penjualan (KG)     [INPUT]
+     * D: Hasil Produksi(KG) [INPUT]
+     * E: ID_PRODUK (hidden)
      */
     public function exportTemplate(Request $request)
     {
-        // tanggal optional, kalau kosong default hari ini
         $tanggal = $request->get('tanggal', Carbon::today()->format('Y-m-d'));
 
         return Excel::download(
             new TrainingHarianTemplateExport($tanggal),
-            'template_training_harian.xlsx'
+            "template_training_harian_{$tanggal}.xlsx"
         );
     }
 
     /**
      * Import template (updateOrCreate per tanggal+produk)
-     * + validasi isi file angka (error universal)
+     * - Row 0: Tanggal (B1)
+     * - Row 1: Panduan
+     * - Row 2: Header
+     * - Row 3..: Data
      */
     public function import(Request $request)
     {
@@ -70,31 +101,35 @@ class TrainingHarianController extends Controller
 
         $rows = $sheets[0] ?? [];
 
-        // minimal 3 baris: baris 0 (judul/tanggal), baris 1 (header), baris 2 (data)
-        if (count($rows) < 3) {
+        // minimal 4 baris: row0(tanggal), row1(panduan), row2(header), row3(data)
+        if (count($rows) < 4) {
             return back()->with('error', 'File kosong atau format tidak sesuai template.');
         }
 
         /**
-         * ====== VALIDASI HEADER (baris ke-2 = index 1) ======
+         * ====== VALIDASI HEADER (baris ke-3 = index 2) ======
          * Ekspektasi:
          *  A: Produk
-         *  B: Penjualan
-         *  C: Hasil Produksi
-         *  D: (optional) ID_PRODUK
+         *  B: Stok Terakhir (KG)
+         *  C: Penjualan (KG)
+         *  D: Hasil Produksi (KG)
+         *  E: ID_PRODUK (hidden)
          */
-        $header = $rows[1] ?? [];
+        $header = $rows[2] ?? [];
+
         $colProduk    = strtolower(trim((string)($header[0] ?? '')));
-        $colPenjualan = strtolower(trim((string)($header[1] ?? '')));
-        $colHasil     = strtolower(trim((string)($header[2] ?? '')));
+        $colStok      = strtolower(trim((string)($header[1] ?? '')));
+        $colPenjualan = strtolower(trim((string)($header[2] ?? '')));
+        $colHasil     = strtolower(trim((string)($header[3] ?? '')));
 
         $headerOk =
             (strpos($colProduk, 'produk') !== false) &&
+            (strpos($colStok, 'stok') !== false) &&
             (strpos($colPenjualan, 'penjualan') !== false) &&
             (strpos($colHasil, 'hasil') !== false);
 
         if (! $headerOk) {
-            return back()->with('error', 'Header kolom tidak sesuai template (harus: Produk, Penjualan, Hasil Produksi).');
+            return back()->with('error', 'Header kolom tidak sesuai template.');
         }
 
         // Tanggal ada di B1 (row 0 col 1)
@@ -102,7 +137,7 @@ class TrainingHarianController extends Controller
         $tanggal = $this->normalizeExcelDate($rawTanggal);
 
         if (!$tanggal) {
-            return back()->with('error', 'Tanggal belum diisi / format salah. Isi tanggal di kolom B baris 1.');
+            return back()->with('error', 'Tanggal belum diisi / format salah.');
         }
 
         // jika sudah digenerate -> kunci (biar draft tidak berubah)
@@ -113,35 +148,34 @@ class TrainingHarianController extends Controller
 
         // ====== VALIDASI ISI ANGKA (UNIVERSAL ERROR) ======
 
-        $validRows       = [];
-        $totalBarisData  = 0;
-        $hasInvalidNumber = false;
+        $validRows         = [];
+        $totalBarisData    = 0;
+        $hasInvalidNumber  = false;
 
-        // helper: normalisasi nilai excel ke string
         $toString = function ($val): string {
             if (is_null($val)) return '';
             if (is_int($val) || is_float($val)) {
-                if (floor($val) == $val) {
-                    return (string) (int) $val;
-                }
+                if (floor($val) == $val) return (string) (int) $val;
                 return (string) $val;
             }
             return trim((string) $val);
         };
 
-        // regex: 0 atau bilangan bulat positif tanpa leading zero
+        // 0 atau bilangan bulat positif tanpa leading zero
         $isNonNegativeInt = function (string $v): bool {
             return (bool) preg_match('/^(0|[1-9][0-9]*)$/', $v);
         };
 
-        for ($i = 2; $i < count($rows); $i++) {
+        // Data mulai row 3 (index 3)
+        for ($i = 3; $i < count($rows); $i++) {
 
             $namaProduk = $toString($rows[$i][0] ?? '');
-            $penjualanS = $toString($rows[$i][1] ?? '');
-            $hasilS     = $toString($rows[$i][2] ?? '');
-            $idProdukFromFile = $rows[$i][3] ?? null;
+            // $stokS = $toString($rows[$i][1] ?? ''); // readonly (abaikan)
+            $penjualanS = $toString($rows[$i][2] ?? ''); // kolom C
+            $hasilS     = $toString($rows[$i][3] ?? ''); // kolom D
+            $idProdukFromFile = $rows[$i][4] ?? null;     // kolom E (hidden)
 
-            // kalau semua kolom kosong -> skip
+            // kalau semua kosong -> skip
             $isSemuaKosong =
                 ($namaProduk === '') &&
                 ($penjualanS === '') &&
@@ -154,15 +188,16 @@ class TrainingHarianController extends Controller
 
             $totalBarisData++;
 
-            // cek format angka: kalau ada 1 saja yang tidak valid, tandai & break
-            if ($penjualanS === '' || ! $isNonNegativeInt($penjualanS) ||
-                $hasilS === '' || ! $isNonNegativeInt($hasilS)) {
+            // JIKA KOSONG → JADI 0
+            if ($penjualanS === '') $penjualanS = '0';
+            if ($hasilS === '')     $hasilS     = '0';
 
+            // VALIDASI ANGKA
+            if (! $isNonNegativeInt($penjualanS) || ! $isNonNegativeInt($hasilS)) {
                 $hasInvalidNumber = true;
                 break;
             }
 
-            // simpan untuk diproses ke DB nanti
             $validRows[] = [
                 'nama'        => $namaProduk,
                 'penjualan_s' => $penjualanS,
@@ -171,21 +206,15 @@ class TrainingHarianController extends Controller
             ];
         }
 
-        // kalau ada angka yang formatnya tidak valid -> error universal
         if ($hasInvalidNumber) {
-            return back()->with('error',
-                'Format angka tidak valid.'
-            );
+            return back()->with('error', 'Format angka tidak valid. Isi Penjualan & Hasil Produksi dengan angka bulat (KG), tanpa koma/titik.');
         }
 
-        // kalau tidak ada satu pun baris data
         if ($totalBarisData === 0 || empty($validRows)) {
-            return back()->with('error',
-                'Tidak ada baris data yang bisa diproses. Pastikan Produk, Penjualan, dan Hasil Produksi sudah diisi.'
-            );
+            return back()->with('error', 'Tidak ada baris data yang bisa diproses. Pastikan Penjualan & Hasil Produksi sudah diisi (minimal 0).');
         }
 
-        // ====== MASUK DB (semua data numeric sudah dipastikan aman) ======
+        // ====== MASUK DB ======
 
         $jumlahDipakai       = 0;
         $jumlahProdukUnknown = 0;
@@ -201,9 +230,9 @@ class TrainingHarianController extends Controller
 
                 $produk = null;
 
-                // 1) coba dari ID_PRODUK yang disembunyikan di template
+                // 1) cari dari ID_PRODUK (hidden)
                 if (!empty($idProdukFromFile)) {
-                    $produk = Produk::where('id_produk', (int)$idProdukFromFile)->first();
+                    $produk = Produk::where('id_produk', (int) $idProdukFromFile)->first();
                 }
 
                 // 2) fallback by nama
@@ -211,7 +240,6 @@ class TrainingHarianController extends Controller
                     $produk = Produk::where('nama_produk', $namaProduk)->first();
                 }
 
-                // kalau produk tetap tidak ketemu => skip, tapi dicatat
                 if (!$produk) {
                     $jumlahProdukUnknown++;
                     continue;
@@ -223,8 +251,8 @@ class TrainingHarianController extends Controller
                         'id_produk' => $produk->id_produk,
                     ],
                     [
-                        'penjualan'      => $penjualan,
-                        'hasil_produksi' => $hasil,
+                        'penjualan'      => max(0, $penjualan),
+                        'hasil_produksi' => max(0, $hasil),
                     ]
                 );
 
@@ -234,18 +262,13 @@ class TrainingHarianController extends Controller
 
         if ($jumlahDipakai === 0) {
             if ($jumlahProdukUnknown > 0) {
-                return back()->with('error',
-                    'Tidak ada data yang bisa disimpan karena produk pada file tidak cocok dengan data master produk di sistem.'
-                );
+                return back()->with('error', 'Tidak ada data yang bisa disimpan karena produk pada file tidak cocok dengan master produk.');
             }
 
-            return back()->with('error',
-                'Tidak ada baris data yang berhasil disimpan. Periksa kembali isi file.'
-            );
+            return back()->with('error', 'Tidak ada baris data yang berhasil disimpan.');
         }
 
-        // susun pesan sukses (juga universal & singkat)
-        $message = "Import training harian berhasil untuk tanggal {$tanggal}.\n";
+        $message  = "Import training harian berhasil untuk tanggal {$tanggal}.\n";
         $message .= "Data tersimpan / ter-update: {$jumlahDipakai} produk.";
 
         if ($jumlahProdukUnknown > 0) {
@@ -289,6 +312,63 @@ class TrainingHarianController extends Controller
             return back()->with('error', "Semua draft tanggal {$tanggal} bernilai 0 (penjualan=0 & hasil=0). Tidak ada yang bisa di-generate.");
         }
 
+        /**
+         * =========================
+         * VALIDASI STOK: penjualan tidak boleh > (stok_awal + hasil)
+         * stok_awal = stok terakhir sebelum tanggal (data_training) atau fallback produk.stok
+         * =========================
+         */
+        $invalidLines = [];
+
+        // ambil stok terakhir sebelum tanggal untuk semua produk (1x query)
+        $lastBefore = DataTraining::select('id_produk', 'stok_barang_jadi', 'tanggal', 'id_data_training')
+            ->where('tanggal', '<', $tanggal)
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('id_data_training', 'desc')
+            ->get()
+            ->unique('id_produk')
+            ->keyBy('id_produk');
+
+        // ambil master produk yang terlibat (biar ada nama)
+        $produkMap = Produk::whereIn('id_produk', $draft->pluck('id_produk')->unique()->values())
+            ->get()
+            ->keyBy('id_produk');
+
+        foreach ($draft as $d) {
+
+            $penjualan = (int) $d->penjualan;
+            $hasil     = (int) $d->hasil_produksi;
+
+            // kalau 0 & 0 -> nanti diskip oleh proses insert (biarin lewat)
+            if ($penjualan <= 0 && $hasil <= 0) {
+                continue;
+            }
+
+            $p = $produkMap[$d->id_produk] ?? null;
+            $namaProduk = $p ? $p->nama_produk : ('ID ' . $d->id_produk);
+
+            $stokAwal = $lastBefore->has($d->id_produk)
+                ? (int) $lastBefore[$d->id_produk]->stok_barang_jadi
+                : (int) (($p && isset($p->stok)) ? $p->stok : 0);
+
+            $maxBisaJual = $stokAwal + $hasil;
+
+            if ($penjualan > $maxBisaJual) {
+                $invalidLines[] = "{$namaProduk} (Stok Awal {$stokAwal} + Produksi {$hasil} = {$maxBisaJual}, Penjualan {$penjualan})";
+            }
+        }
+
+        if (!empty($invalidLines)) {
+            return back()->with(
+                'error',
+                'Generate gagal. Stok tidak cukup untuk memenuhi penjualan pada tanggal tersebut. 
+                Periksa kembali penjualan atau hasil produksi.'
+            );
+        }
+
+        // =========================
+        // LANJUT GENERATE (SAMA SEPERTI PUNYAMU)
+        // =========================
         $inserted = 0;
         $skipped  = 0;
 
@@ -299,7 +379,6 @@ class TrainingHarianController extends Controller
                 $penjualan = (int) $d->penjualan;
                 $hasil     = (int) $d->hasil_produksi;
 
-                // ✅ RULE: kalau 0 & 0 => skip, tidak masuk data_training, stok tidak berubah
                 if ($penjualan <= 0 && $hasil <= 0) {
                     $skipped++;
                     continue;
@@ -307,9 +386,6 @@ class TrainingHarianController extends Controller
 
                 $produk = Produk::lockForUpdate()->where('id_produk', $d->id_produk)->first();
 
-                // stok sebelumnya:
-                // - ambil stok akhir terakhir di data_training sebelum tanggal ini
-                // - kalau tidak ada, pakai stok realtime produk saat ini
                 $lastTraining = DataTraining::where('id_produk', $produk->id_produk)
                     ->where('tanggal', '<', $tanggal)
                     ->orderBy('tanggal', 'desc')
@@ -320,11 +396,9 @@ class TrainingHarianController extends Controller
                     ? (int) $lastTraining->stok_barang_jadi
                     : (int) ($produk->stok ?? 0);
 
-                // stok akhir = stok sebelum - jual + hasil
                 $stokAkhir = $stokSebelumnya - $penjualan + $hasil;
                 if ($stokAkhir < 0) $stokAkhir = 0;
 
-                // create data_training (1 baris per produk per tanggal)
                 DataTraining::create([
                     'id_produk'        => $produk->id_produk,
                     'tanggal'          => $tanggal,
@@ -333,7 +407,6 @@ class TrainingHarianController extends Controller
                     'stok_barang_jadi' => $stokAkhir,
                 ]);
 
-                // update stok realtime produk mengikuti stok akhir tanggal tsb
                 $produk->stok = $stokAkhir;
                 $produk->save();
 
@@ -343,23 +416,24 @@ class TrainingHarianController extends Controller
 
         return redirect()
             ->route('training.harian.index', ['tanggal' => $tanggal])
-            ->with(
-                'success',
-                "Generate berhasil ({$tanggal}). Masuk Data Training: {$inserted} produk. Dilewati (0 & 0): {$skipped} produk."
-            );
+            ->with('success', "Generate berhasil ({$tanggal}). Masuk Data Training: {$inserted} produk.");
     }
 
     protected function normalizeExcelDate($value): ?string
     {
+        // Jika sudah DateTime (dari Excel)
         if ($value instanceof \DateTimeInterface) {
             return Carbon::instance($value)->format('Y-m-d');
         }
 
+        // Jika numeric (serial date Excel)
         if (is_numeric($value)) {
+            // Excel base date: 1899-12-30
             $base = Carbon::createFromDate(1899, 12, 30);
-            return $base->copy()->addDays((int)$value)->format('Y-m-d');
+            return $base->copy()->addDays((int) $value)->format('Y-m-d');
         }
 
+        // Jika string tanggal
         if (is_string($value) && trim($value) !== '') {
             try {
                 return Carbon::parse($value)->format('Y-m-d');
@@ -370,4 +444,6 @@ class TrainingHarianController extends Controller
 
         return null;
     }
+
+
 }
