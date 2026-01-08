@@ -20,9 +20,6 @@
 
                 <p class="header-sub">
                     Isi data sesuai kondisi hari ini untuk menghasilkan saran jumlah produksi.
-                    <span class="sub-note">
-                        <b>Catatan:</b> “Penjualan” di halaman ini = <b>pesanan masuk</b>. Sedangkan “Penjualan” pada template Excel Data Training = <b>jumlah terjual</b>.
-                    </span>
                 </p>
             </div>
 
