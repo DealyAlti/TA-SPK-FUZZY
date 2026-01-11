@@ -55,7 +55,7 @@
                                     <td>{{ $hasil['input']['waktu_produksi'] }}</td>
                                     <td>{{ $hasil['input']['stok_barang_jadi'] }}</td>
                                     <td>{{ $hasil['input']['kapasitas_produksi'] }}</td>
-                                    <td><b>???</b></td>
+                                    <td><b>{{ number_format($hasil['z_bulat']) }}</b> kg</td>
                                 </tr>
                             </tbody>
                         </table>

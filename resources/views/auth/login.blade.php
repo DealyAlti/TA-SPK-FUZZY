@@ -6,11 +6,9 @@
     {{-- BAGIAN MERAH KIRI – FULL HEIGHT --}}
     <div class="left-red-side">
         <div class="left-content-box">
-
             <h4 class="pt-short">PT APN</h4>
             <h2 class="pt-name">PT Anugerah Pelangi Nusantara</h2>
             <p class="pt-sub">Sistem Pendukung Keputusan Jumlah Produksi</p>
-
         </div>
     </div>
 
@@ -21,22 +19,57 @@
             <h3 class="login-title">Sign In</h3>
             <p class="login-subtitle">Masuk menggunakan akun yang telah terdaftar.</p>
 
-            <form action="{{ route('login') }}" method="post">
+            {{-- ERROR UMUM (misal email/password salah) --}}
+            @if ($errors->has('email') && !old('email'))
+                {{-- biarkan saja, biasanya dari validasi required --}}
+            @endif
+
+            @if(session('error'))
+                <div class="alert alert-danger modern-alert" style="margin-bottom:16px;">
+                    <i class="fa fa-times-circle"></i> {{ session('error') }}
+                </div>
+            @endif
+
+            {{-- Error login bawaan (misal credentials salah) kadang masuknya ke errors->first('email') --}}
+            @if ($errors->any() && !$errors->has('email') && !$errors->has('password'))
+                <div class="alert alert-danger modern-alert" style="margin-bottom:16px;">
+                    <i class="fa fa-times-circle"></i> {{ $errors->first() }}
+                </div>
+            @endif
+
+            <form action="{{ route('login') }}" method="post" novalidate>
                 @csrf
 
+                {{-- EMAIL --}}
                 <div class="form-group @error('email') has-error @enderror">
                     <label>Email</label>
-                    <input type="email" name="email" class="form-control"
-                           placeholder="Masukkan email" value="{{ old('email') }}" required>
+                    <input
+                        type="email"
+                        name="email"
+                        class="form-control"
+                        placeholder="Masukkan email"
+                        value="{{ old('email') }}"
+                        required
+                        oninvalid="this.setCustomValidity('Email tidak boleh kosong')"
+                        oninput="this.setCustomValidity('')"
+                    >
                     @error('email')
                         <span class="help-block text-danger">{{ $message }}</span>
                     @enderror
                 </div>
 
+                {{-- PASSWORD --}}
                 <div class="form-group @error('password') has-error @enderror">
                     <label>Password</label>
-                    <input type="password" name="password" class="form-control"
-                           placeholder="Masukkan password" required>
+                    <input
+                        type="password"
+                        name="password"
+                        class="form-control"
+                        placeholder="Masukkan password"
+                        required
+                        oninvalid="this.setCustomValidity('Password tidak boleh kosong')"
+                        oninput="this.setCustomValidity('')"
+                    >
                     @error('password')
                         <span class="help-block text-danger">{{ $message }}</span>
                     @enderror
@@ -56,9 +89,7 @@
         --apn-red-dark: #b81818;
     }
 
-    /* ================================
-       LAYOUT UTAMA
-    =================================*/
+    /* LAYOUT UTAMA */
     body {
         background: #ffffff !important;
     }
@@ -70,14 +101,12 @@
         overflow: hidden;
     }
 
-    /* ================================
-       BAGIAN KIRI (MERAH FULL)
-    =================================*/
+    /* BAGIAN KIRI (MERAH FULL) */
     .left-red-side {
         flex: 1.1;
         background:
             linear-gradient(rgba(200, 0, 0, 0.55), rgba(200, 0, 0, 0.55)),
-            url('{{ asset('images/login.png') }}'); /* PENTING → pakai login.png */
+            url('{{ asset('images/login.png') }}');
         background-size: cover;
         background-repeat: no-repeat;
         background-position: center;
@@ -113,9 +142,7 @@
         margin-top: 10px;
     }
 
-    /* ================================
-       BAGIAN KANAN (KOTAK LOGIN)
-    =================================*/
+    /* BAGIAN KANAN (KOTAK LOGIN) */
     .right-login-box {
         flex: 1;
         background: #ffffff;
@@ -143,17 +170,35 @@
         margin-bottom: 25px;
     }
 
+    /* Alert style */
+    .modern-alert {
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 14px;
+    }
+
     /* Input */
     .form-group label {
         font-size: 13px;
         font-weight: 600;
         color: #444;
+        margin-bottom: 6px;
     }
 
     .form-control {
         height: 42px;
         border-radius: 8px;
         box-shadow: none;
+        border: 1px solid #ddd;
+    }
+
+    .has-error .form-control {
+        border-color: #d82323 !important;
+    }
+
+    .help-block {
+        margin-top: 6px;
+        font-size: 12px;
     }
 
     /* Tombol Login */
@@ -184,6 +229,10 @@
         .left-red-side {
             flex: none;
             height: 220px;
+            padding: 28px;
+        }
+        .pt-name {
+            font-size: 24px;
         }
     }
 </style>

@@ -41,20 +41,26 @@
                         </label>
                         <div class="col-lg-3">
                             <input type="number"
-                                   name="kapasitas_min"
-                                   id="kapasitas_min"
-                                   class="form-control"
-                                   placeholder="Min"
-                                   min="0">
+                                name="kapasitas_min"
+                                id="kapasitas_min"
+                                class="form-control"
+                                placeholder="Min"
+                                min="0"
+                                required
+                                oninvalid="this.setCustomValidity('Kapasitas minimum wajib diisi.')"
+                                oninput="this.setCustomValidity('')">
                             <span class="help-block with-errors"></span>
                         </div>
                         <div class="col-lg-3">
                             <input type="number"
-                                   name="kapasitas_max"
-                                   id="kapasitas_max"
-                                   class="form-control"
-                                   placeholder="Max"
-                                   min="0">
+                                name="kapasitas_max"
+                                id="kapasitas_max"
+                                class="form-control"
+                                placeholder="Max"
+                                min="0"
+                                required
+                                oninvalid="this.setCustomValidity('Kapasitas maksimum wajib diisi.')"
+                                oninput="this.setCustomValidity('')">
                             <span class="help-block with-errors"></span>
                         </div>
                     </div>
@@ -66,20 +72,26 @@
                         </label>
                         <div class="col-lg-3">
                             <input type="number"
-                                   name="waktu_min"
-                                   id="waktu_min"
-                                   class="form-control"
-                                   placeholder="Min"
-                                   min="0">
+                                name="waktu_min"
+                                id="waktu_min"
+                                class="form-control"
+                                placeholder="Min"
+                                min="0"
+                                required
+                                oninvalid="this.setCustomValidity('Waktu produksi minimum wajib diisi.')"
+                                oninput="this.setCustomValidity('')">
                             <span class="help-block with-errors"></span>
                         </div>
                         <div class="col-lg-3">
                             <input type="number"
-                                   name="waktu_max"
-                                   id="waktu_max"
-                                   class="form-control"
-                                   placeholder="Max"
-                                   min="0">
+                                name="waktu_max"
+                                id="waktu_max"
+                                class="form-control"
+                                placeholder="Max"
+                                min="0"
+                                required
+                                oninvalid="this.setCustomValidity('Waktu produksi maksimum wajib diisi.')"
+                                oninput="this.setCustomValidity('')">
                             <span class="help-block with-errors"></span>
                         </div>
                     </div>

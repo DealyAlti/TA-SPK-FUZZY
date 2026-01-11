@@ -37,8 +37,12 @@ class UserController extends Controller
             ->addColumn('aksi', function ($user) {
                 return '
                     <div class="btn-group">
-                        <button type="button" onclick="editForm(`'. route('user.show', $user->id) .'`)" class="btn btn-xs btn-info btn-flat"><i class="fa fa-pencil"></i></button>
-                        <button type="button" onclick="deleteData(`'. route('user.destroy', $user->id) .'`)" class="btn btn-xs btn-danger btn-flat"><i class="fa fa-trash"></i></button>
+                        <button type="button" onclick="editForm(`' . route('user.show', $user->id) . '`)" class="btn btn-xs btn-info btn-flat">
+                            <i class="fa fa-pencil"></i>
+                        </button>
+                        <button type="button" onclick="deleteData(`' . route('user.destroy', $user->id) . '`)" class="btn btn-xs btn-danger btn-flat">
+                            <i class="fa fa-trash"></i>
+                        </button>
                     </div>
                 ';
             })
@@ -63,7 +67,24 @@ class UserController extends Controller
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|unique:users,email',
             'password' => 'required|string|min:6|confirmed',
-            'level'    => ['required', Rule::in([0, 1, 2])], // kalau mau pakai role angka
+            'level'    => ['required', Rule::in([0, 1, 2])],
+        ], [
+            // required -> "tidak boleh kosong"
+            'name.required'     => 'Nama tidak boleh kosong',
+            'email.required'    => 'Email tidak boleh kosong',
+            'password.required' => 'Password tidak boleh kosong',
+            'level.required'    => 'Level tidak boleh kosong',
+
+            // detail rules
+            'name.max'          => 'Nama maksimal 255 karakter',
+
+            'email.email'       => 'Format email tidak valid',
+            'email.unique'      => 'Email sudah terdaftar',
+
+            'password.min'      => 'Password minimal 6 karakter',
+            'password.confirmed'=> 'Konfirmasi password tidak cocok',
+
+            'level.in'          => 'Level tidak valid',
         ]);
 
         $user = new User();
@@ -73,7 +94,9 @@ class UserController extends Controller
         $user->level    = $validated['level'];
         $user->save();
 
-        return redirect()->route('user.index')->with('success', 'Pengguna berhasil ditambahkan');
+        return redirect()
+            ->route('user.index')
+            ->with('success', 'Pengguna berhasil ditambahkan');
     }
 
     /**
@@ -97,17 +120,33 @@ class UserController extends Controller
             'email' => [
                 'required',
                 'email',
-                Rule::unique('users')->ignore($user->id),
+                Rule::unique('users', 'email')->ignore($user->id),
             ],
             'level' => ['required', Rule::in([0, 1, 2])],
         ];
 
-        // Password cuma dicek kalau diisi
+        // Password cuma dicek kalau diisi (opsional saat edit)
         if ($request->filled('password')) {
             $rules['password'] = 'string|min:6|confirmed';
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            // required -> "tidak boleh kosong"
+            'name.required'  => 'Nama tidak boleh kosong',
+            'email.required' => 'Email tidak boleh kosong',
+            'level.required' => 'Level tidak boleh kosong',
+
+            // detail rules
+            'name.max'       => 'Nama maksimal 255 karakter',
+
+            'email.email'    => 'Format email tidak valid',
+            'email.unique'   => 'Email sudah terdaftar',
+
+            'password.min'       => 'Password minimal 6 karakter',
+            'password.confirmed' => 'Konfirmasi password tidak cocok',
+
+            'level.in'       => 'Level tidak valid',
+        ]);
 
         $user->name  = $validated['name'];
         $user->email = $validated['email'];
@@ -130,7 +169,8 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         $user->delete();
 
-        return response()->json('Data berhasil dihapus', 204);
+        // kalau delete via ajax, 200 lebih aman karena ada body text
+        return response()->json('Data berhasil dihapus', 200);
     }
 
     /**

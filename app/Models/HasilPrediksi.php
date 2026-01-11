@@ -19,24 +19,15 @@ class HasilPrediksi extends Model
         'stok_barang_jadi',
         'kapasitas_produksi',
         'jumlah_produksi',
-        'hasil_aktual',
-
-        // 🔒 snapshot detail
-        'detail_minmax',
-        'detail_mu',
-        'detail_rules',
-        'detail_sum_alpha',
-        'detail_sum_alpha_z',
-        'detail_z_akhir',
-    ];
-    protected $casts = [
-        'detail_minmax' => 'array',
-        'detail_mu'     => 'array',
-        'detail_rules'  => 'array',
     ];
 
     public function produk()
     {
         return $this->belongsTo(Produk::class, 'id_produk', 'id_produk');
     }
+    public function detail()
+    {
+        return $this->hasOne(HasilPrediksiDetail::class, 'id_hasil_prediksi', 'id_hasil_prediksi');
+    }
+
 }

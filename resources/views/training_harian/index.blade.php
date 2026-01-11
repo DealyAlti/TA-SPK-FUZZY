@@ -199,13 +199,11 @@
             </div>
 
             {{-- GENERATE --}}
-            <form method="POST" action="{{ route('training.harian.generate') }}" style="margin-top:14px;">
+            <form id="form-generate" method="POST" action="{{ route('training.harian.generate') }}" style="margin-top:14px;">
                 @csrf
                 <input type="hidden" name="tanggal" value="{{ $tanggal }}">
 
-                <button type="submit" class="btn btn-red"
-                        onclick="return confirm('Generate draft tanggal {{ $tanggal }} ke Data Training? Setelah generate, draft tanggal ini akan terkunci.');"
-                        {{ $sudahGenerate ? 'disabled' : '' }}>
+                <button id="btn-generate" type="button" class="btn btn-red" {{ $sudahGenerate ? 'disabled' : '' }}>
                     <i class="fa fa-cogs"></i> Generate ke Data Training &amp; Update Stok
                 </button>
             </form>
@@ -256,6 +254,79 @@
                 html: `{!! nl2br(e(session('success'))) !!}`
             });
         @endif
+    });
+</script>
+@endpush
+
+@push('scripts')
+<script>
+    $(function () {
+
+        // ===== NOTIF VALIDASI LARAVEL =====
+        @if ($errors->any())
+            Swal.fire({
+                icon: 'error',
+                title: 'Validasi Gagal',
+                html: `{!! implode('<br>', $errors->all()) !!}`
+            });
+        @endif
+
+        // ===== FLASH MESSAGE: ERROR =====
+        @if (session('error'))
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                html: `{!! nl2br(e(session('error'))) !!}`
+            });
+        @endif
+
+        // ===== FLASH MESSAGE: INFO =====
+        @if (session('info'))
+            Swal.fire({
+                icon: 'info',
+                title: 'Informasi',
+                html: `{!! nl2br(e(session('info'))) !!}`
+            });
+        @endif
+
+        // ===== FLASH MESSAGE: SUCCESS =====
+        @if (session('success'))
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil',
+                html: `{!! nl2br(e(session('success'))) !!}`
+            });
+        @endif
+
+        // ==========================
+        // ✅ SWEETALERT CONFIRM GENERATE
+        // ==========================
+        $('#btn-generate').on('click', function () {
+            Swal.fire({
+                title: 'Generate Data Training?',
+                html: `
+                    <div style="text-align:left">
+                        <b>Tanggal:</b> {{ $tanggal }}<br>
+                        Setelah generate:<br>
+                        • Draft akan <b>terkunci</b><br>
+                        • Data masuk ke <b>Data Training</b><br>
+                        • Stok akan <b>diupdate</b>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Generate',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#b91c1c',
+                cancelButtonColor: '#6b7280',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $('#form-generate').submit();
+                }
+            });
+        });
+
     });
 </script>
 @endpush

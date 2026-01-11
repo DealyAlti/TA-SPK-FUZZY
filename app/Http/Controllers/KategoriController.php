@@ -69,10 +69,27 @@ class KategoriController extends Controller
     {
         $request->validate([
             'nama_kategori'  => 'required|unique:kategori,nama_kategori',
-            'kapasitas_min'  => 'nullable|integer|min:0',
-            'kapasitas_max'  => 'nullable|integer|min:0',
-            'waktu_min'      => 'nullable|integer|min:0',
-            'waktu_max'      => 'nullable|integer|min:0',
+
+            // WAJIB
+            'kapasitas_min'  => 'required|integer|min:0',
+            'kapasitas_max'  => 'required|integer|min:0',
+            'waktu_min'      => 'required|integer|min:0',
+            'waktu_max'      => 'required|integer|min:0',
+
+            // opsional tambahan: min harus <= max
+            'kapasitas_max'  => 'required|integer|min:' . $request->kapasitas_min,
+            'waktu_max'      => 'required|integer|min:' . $request->waktu_min,
+        ], [
+            'nama_kategori.required' => 'Kategori tidak boleh kosong',
+            'nama_kategori.unique'   => 'Kategori sudah ada',
+
+            'kapasitas_min.required' => 'Kapasitas minimum wajib diisi',
+            'kapasitas_max.required' => 'Kapasitas maksimum wajib diisi',
+            'waktu_min.required'     => 'Waktu produksi minimum wajib diisi',
+            'waktu_max.required'     => 'Waktu produksi maksimum wajib diisi',
+
+            'kapasitas_max.min'      => 'Kapasitas maksimum harus >= kapasitas minimum',
+            'waktu_max.min'          => 'Waktu maksimum harus >= waktu minimum',
         ]);
 
         $kategori = new Kategori();
@@ -85,6 +102,7 @@ class KategoriController extends Controller
 
         return response()->json(['message' => 'Data berhasil disimpan'], 200);
     }
+
 
 
 
@@ -123,10 +141,27 @@ class KategoriController extends Controller
     {
         $request->validate([
             'nama_kategori'  => 'required|unique:kategori,nama_kategori,' . $id . ',id_kategori',
-            'kapasitas_min'  => 'nullable|integer|min:0',
-            'kapasitas_max'  => 'nullable|integer|min:0',
-            'waktu_min'      => 'nullable|integer|min:0',
-            'waktu_max'      => 'nullable|integer|min:0',
+
+            // WAJIB
+            'kapasitas_min'  => 'required|integer|min:0',
+            'kapasitas_max'  => 'required|integer|min:0',
+            'waktu_min'      => 'required|integer|min:0',
+            'waktu_max'      => 'required|integer|min:0',
+
+            // min harus <= max
+            'kapasitas_max'  => 'required|integer|min:' . $request->kapasitas_min,
+            'waktu_max'      => 'required|integer|min:' . $request->waktu_min,
+        ], [
+            'nama_kategori.required' => 'Kategori tidak boleh kosong',
+            'nama_kategori.unique'   => 'Kategori sudah ada',
+
+            'kapasitas_min.required' => 'Kapasitas minimum wajib diisi',
+            'kapasitas_max.required' => 'Kapasitas maksimum wajib diisi',
+            'waktu_min.required'     => 'Waktu produksi minimum wajib diisi',
+            'waktu_max.required'     => 'Waktu produksi maksimum wajib diisi',
+
+            'kapasitas_max.min'      => 'Kapasitas maksimum harus >= kapasitas minimum',
+            'waktu_max.min'          => 'Waktu maksimum harus >= waktu minimum',
         ]);
 
         $kategori = Kategori::findOrFail($id);

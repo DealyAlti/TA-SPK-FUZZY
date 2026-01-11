@@ -70,10 +70,13 @@
                         $('#modal-form').modal('hide');
                         table.ajax.reload();
 
+                        const method = $('#modal-form [name=_method]').val(); // post / put
+                        const isUpdate = method === 'put';
+
                         Swal.fire({
                             icon: 'success',
                             title: 'Berhasil',
-                            text: 'Data kategori berhasil disimpan.',
+                            text: isUpdate ? 'Data kategori berhasil diupdate.' : 'Data kategori berhasil disimpan.',
                             confirmButtonText: 'OK',
                             confirmButtonColor: '#4f9b8f',
                         });

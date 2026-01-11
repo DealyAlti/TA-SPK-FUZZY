@@ -67,31 +67,60 @@
         });
 
         $('#modal-form').validator().on('submit', function (e) {
-            if (! e.preventDefault()) {
+            if (!e.preventDefault()) {
+
+                // cek ini aksi tambah atau update
+                const method = ($('#modal-form [name=_method]').val() || 'post').toLowerCase();
+                const isUpdate = (method === 'put' || method === 'patch');
+
                 $.post($('#modal-form form').attr('action'), $('#modal-form form').serialize())
                     .done((response) => {
                         $('#modal-form').modal('hide');
                         table.ajax.reload();
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil',
+                            text: isUpdate ? 'Data produk berhasil diupdate.' : 'Data produk berhasil disimpan.',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#4f9b8f',
+                            showConfirmButton: true,
+                        });
                     })
                     .fail((xhr) => {
                         if (xhr.status === 422) {
-                            let response = xhr.responseJSON;
+                            const res = xhr.responseJSON || {};
+                            const errors = res.errors || {};
+
+                            // ambil pesan error pertama biar enak dibaca
+                            let msg = 'Data tidak valid';
+                            const firstKey = Object.keys(errors)[0];
+                            if (firstKey && errors[firstKey] && errors[firstKey][0]) {
+                                msg = errors[firstKey][0];
+                            } else if (res.message) {
+                                msg = res.message;
+                            }
+
                             Swal.fire({
                                 icon: 'error',
-                                title: 'Gagal Menyimpan',
-                                text: response.message || 'Data tidak valid',
+                                title: isUpdate ? 'Gagal Update' : 'Gagal Menyimpan',
+                                text: msg,
+                                confirmButtonText: 'OK',
+                                confirmButtonColor: '#d33',
                             });
                         } else {
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Oops...',
                                 text: 'Terjadi kesalahan pada server',
+                                confirmButtonText: 'OK',
+                                confirmButtonColor: '#d33',
                             });
                         }
                     });
-
             }
         });
+
 
         $('[name=select_all]').on('click', function () {
             $(':checkbox').prop('checked', this.checked);
