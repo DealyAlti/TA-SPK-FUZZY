@@ -25,13 +25,14 @@
 
             <div class="box-body body-soft">
 
-                {{-- error validasi --}}
+                {{-- server-side validation (kalau user bypass html5) --}}
                 @if ($errors->any())
-                    <div class="alert alert-danger modern-alert">
+                    <div class="alert alert-modern-danger">
                         <div class="alert-title">
-                            <i class="fa fa-exclamation-triangle"></i> Periksa kembali input
+                            <i class="fa fa-exclamation-triangle"></i>
+                            Periksa kembali input
                         </div>
-                        <ul style="margin-bottom:0;">
+                        <ul>
                             @foreach ($errors->all() as $error)
                                 <li>{{ $error }}</li>
                             @endforeach
@@ -47,7 +48,12 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="control-label">Produk</label>
-                                <select id="produk" name="id_produk" class="form-control input-modern" required>
+                                <select id="produk"
+                                        name="id_produk"
+                                        class="form-control input-modern"
+                                        required
+                                        oninvalid="this.setCustomValidity('Nama produk wajib diisi')"
+                                        oninput="this.setCustomValidity('')">
                                     <option value="">Pilih Produk</option>
                                     @foreach ($produk as $p)
                                         <option value="{{ $p->id_produk }}"
@@ -68,11 +74,13 @@
                                        name="tanggal"
                                        class="form-control input-modern"
                                        value="{{ old('tanggal', date('Y-m-d')) }}"
-                                       required>
+                                       required
+                                       oninvalid="this.setCustomValidity('Tanggal perhitungan wajib diisi')"
+                                       oninput="this.setCustomValidity('')">
                             </div>
                         </div>
 
-                        {{-- PENJUALAN (pesanan masuk) --}}
+                        {{-- PENJUALAN --}}
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="control-label">
@@ -86,7 +94,9 @@
                                        class="form-control input-modern"
                                        value="{{ old('penjualan') }}"
                                        min="0"
-                                       required>
+                                       required
+                                       oninvalid="this.setCustomValidity('Angka tidak boleh kurang dr 0')"
+                                       oninput="this.setCustomValidity('')">
                             </div>
                         </div>
 
@@ -100,11 +110,13 @@
                                        class="form-control input-modern"
                                        value="{{ old('waktu_produksi') }}"
                                        min="0"
-                                       required>
+                                       required
+                                       oninvalid="this.setCustomValidity('Angka tidak boleh kurang dari 0')"
+                                       oninput="this.setCustomValidity('')">
                             </div>
                         </div>
 
-                        {{-- STOK BARANG JADI (AUTO, READONLY) --}}
+                        {{-- STOK (AUTO, READONLY) --}}
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="control-label">
@@ -112,15 +124,15 @@
                                     <span class="hint">diambil otomatis dari stok produk</span>
                                 </label>
 
-                                {{-- tampilkan readonly --}}
                                 <input type="number"
                                        id="stok_display"
                                        class="form-control input-modern"
                                        value="{{ old('stok_barang_jadi', 0) }}"
                                        min="0"
-                                       readonly>
+                                       readonly
+                                       oninvalid="this.setCustomValidity('Angka tidak boleh kurang dr 0')"
+                                       oninput="this.setCustomValidity('')">
 
-                                {{-- tetap dikirim ke controller --}}
                                 <input type="hidden"
                                        id="stok_barang_jadi"
                                        name="stok_barang_jadi"
@@ -137,7 +149,9 @@
                                        class="form-control input-modern"
                                        value="{{ old('kapasitas_produksi') }}"
                                        min="0"
-                                       required>
+                                       required
+                                       oninvalid="this.setCustomValidity('Angka tidak boleh kurang dr 0')"
+                                       oninput="this.setCustomValidity('')">
                             </div>
                         </div>
                     </div>
@@ -156,7 +170,6 @@
     </div>
 </div>
 @endsection
-
 
 @push('css')
 <style>
@@ -204,12 +217,6 @@
     line-height: 1.4;
 }
 
-.sub-note{
-    display:block;
-    margin-top:6px;
-    opacity:.95;
-}
-
 .body-soft{
     background: #fff;
     padding: 24px !important;
@@ -251,20 +258,29 @@
     background:#f9fafb !important;
 }
 
-/* ====== ALERT ====== */
-.modern-alert{
-    border: none !important;
-    border-left: 5px solid #b71c1c !important;
-    border-radius: 14px !important;
-    padding: 14px 16px !important;
-    background: #fdecec !important;
-    color: #7f1d1d !important;
-    box-shadow: 0 6px 18px rgba(0,0,0,.06);
+/* ====== ALERT SERVER SIDE ====== */
+.alert-modern-danger{
+    border:none !important;
+    border-left:6px solid #dc2626 !important;
+    border-radius:14px !important;
+    padding:14px 16px !important;
+    background:#fff1f2 !important;
+    color:#7f1d1d !important;
+    box-shadow:0 6px 18px rgba(0,0,0,.06);
+    margin-bottom:14px;
 }
 
-.modern-alert .alert-title{
-    font-weight: 900;
-    margin-bottom: 8px;
+.alert-modern-danger .alert-title{
+    font-weight:900;
+    margin-bottom:8px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.alert-modern-danger ul{
+    margin:0;
+    padding-left:18px;
 }
 
 /* ====== ACTION BUTTON ====== */
