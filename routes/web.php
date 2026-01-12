@@ -10,6 +10,7 @@ use App\Http\Controllers\{
     DataTrainingController,
     HasilPrediksiController,
     TrainingHarianController,
+    KeputusanProduksiController,
 };
 
 Route::get('/', function () {
@@ -47,17 +48,12 @@ Route::middleware('auth')->group(function () {
     });
 
     // =========================
-    // AKSES BERSAMA: OWNER + KEPALA PRODUKSI
-    // (boleh lihat hasil/riwayat perhitungan)
+    // ✅ KEPALA PRODUKSI (LEVEL 1)
+    // hanya lihat keputusan produksi
     // =========================
-    Route::middleware('level:0,1')->group(function () {
-
-        // lihat hasil/riwayat/detail perhitungan
-        Route::get('/prediksi/hasil', [HasilPrediksiController::class, 'hasil'])->name('prediksi.hasil');
-        Route::get('/prediksi/riwayat', [HasilPrediksiController::class, 'riwayat'])->name('prediksi.riwayat');
-        Route::get('/prediksi/perhitungan', [HasilPrediksiController::class, 'detail'])->name('prediksi.detail');
-        Route::get('/prediksi/perhitungan/{id}', [HasilPrediksiController::class, 'detailById'])->name('prediksi.detailById');
-
+    Route::middleware('level:1')->group(function () {
+        Route::get('/produksi/keputusan-produksi', [KeputusanProduksiController::class, 'lihat'])
+            ->name('keputusan.lihat');
     });
 
     // =========================
@@ -77,11 +73,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/kategori/data', [KategoriController::class, 'data'])->name('kategori.data');
         Route::resource('/kategori', KategoriController::class);
 
-        // DATA TRAINING (tanpa tambah manual & tanpa generate)
+        // DATA TRAINING
         Route::get('/data-training', [DataTrainingController::class, 'index'])->name('training.index');
         Route::get('/data-training/{id_produk}/data', [DataTrainingController::class, 'data'])->name('training.data');
 
-        // aksi yang masih dipakai UI
         Route::delete('/data-training/{id}', [DataTrainingController::class, 'destroy'])->name('training.destroy');
 
         Route::get('/training/{id_produk}/export-template', [DataTrainingController::class, 'exportTemplate'])
@@ -93,8 +88,25 @@ Route::middleware('auth')->group(function () {
         // PREDIKSI (owner boleh hitung)
         Route::get('/prediksi', [HasilPrediksiController::class, 'index'])->name('prediksi.index');
         Route::post('/prediksi/hitung', [HasilPrediksiController::class, 'hitung'])->name('prediksi.hitung');
+
+        // hasil & perhitungan (session)
+        Route::get('/prediksi/hasil', [HasilPrediksiController::class, 'hasil'])->name('prediksi.hasil');
+        Route::get('/prediksi/perhitungan', [HasilPrediksiController::class, 'detail'])->name('prediksi.detail');
+
+        // riwayat & detail by id
+        Route::get('/prediksi/riwayat', [HasilPrediksiController::class, 'riwayat'])->name('prediksi.riwayat');
+        Route::get('/prediksi/perhitungan/{id}', [HasilPrediksiController::class, 'detailById'])->name('prediksi.detailById');
+
+        // edit/update riwayat
         Route::get('/prediksi/{id}/edit', [HasilPrediksiController::class, 'edit'])->name('prediksi.edit');
         Route::put('/prediksi/{id}', [HasilPrediksiController::class, 'update'])->name('prediksi.update');
+
+        // ✅ KEPUTUSAN PRODUKSI (owner)
+        Route::get('/keputusan-produksi', [KeputusanProduksiController::class, 'index'])
+            ->name('keputusan.index');
+
+        Route::post('/keputusan-produksi/kirim', [KeputusanProduksiController::class, 'kirim'])
+            ->name('keputusan.kirim');
     });
 
 });

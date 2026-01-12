@@ -36,6 +36,8 @@
 .badge{display:inline-flex;align-items:center;justify-content:center;padding:6px 12px;border-radius:999px;font-weight:900;font-size:12px;min-width:92px;}
 .badge-red{background:var(--red);color:#fff;}
 .badge-gray{background:#e5e7eb;color:#4b5563;}
+.badge-green{background:#dcfce7;color:#166534;}
+.badge-yellow{background:#fef9c3;color:#854d0e;}
 @media(max-width:768px){
     .hero{flex-direction:column;align-items:flex-start}
     .kpi-grid{grid-template-columns:1fr}
@@ -48,32 +50,32 @@
 
     <div class="hero">
         <div>
-            <h2>Ringkasan Saran Produksi</h2>
-            <p>Fokus: melihat saran jumlah produksi (prediksi) untuk setiap produk. (Kepala Produksi)</p>
+            <h2>Ringkasan Keputusan Produksi</h2>
+            <p>Fokus: melihat jumlah produksi final yang sudah diputuskan Direktur.</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <a href="{{ route('prediksi.riwayat') }}" class="btn-solid btn-outline" style="padding:8px 12px!important;">
-                <i class="fa fa-check-circle"></i> Riwayat Perhitungan
+            <a href="{{ route('keputusan.lihat') }}" class="btn-solid btn-outline" style="padding:8px 12px!important;">
+                <i class="fa fa-check-circle"></i> Lihat Keputusan
             </a>
         </div>
     </div>
 
     <div class="kpi-grid">
         <div class="kpi">
-            <div class="label">Jumlah Saran Hari Ini</div>
-            <div class="value">{{ $totalPrediksiHariIni }}</div>
+            <div class="label">Jumlah Keputusan Hari Ini</div>
+            <div class="value">{{ $totalKeputusanHariIni }}</div>
         </div>
         <div class="kpi">
-            <div class="label">Total Saran Tersimpan</div>
-            <div class="value">{{ $totalPrediksi }}</div>
+            <div class="label">Total Keputusan Tersimpan</div>
+            <div class="value">{{ $totalKeputusan }}</div>
         </div>
     </div>
 
     <div class="section">
         <div class="head">
-            <h3><i class="fa fa-calendar"></i> Saran Produksi Hari Ini</h3>
-            <a href="{{ route('prediksi.riwayat') }}" class="btn-solid btn-outline" style="padding:8px 12px!important;">
-                <i class="fa fa-arrow-right"></i> Lihat Semua
+            <h3><i class="fa fa-calendar"></i> Keputusan Produksi Hari Ini</h3>
+            <a href="{{ route('keputusan.lihat') }}" class="btn-solid btn-outline" style="padding:8px 12px!important;">
+                <i class="fa fa-arrow-right"></i> Lihat Detail
             </a>
         </div>
         <div class="body">
@@ -82,23 +84,31 @@
                     <thead>
                         <tr>
                             <th>Produk</th>
-                            <th>Saran Produksi</th>
+                            <th>Keputusan</th>
+                            <th>Keterangan</th>
                         </tr>
                     </thead>
                     <tbody>
-                    @forelse($prediksiHariIni as $r)
+                    @forelse($keputusanHariIni as $r)
                         <tr>
-                            <td><b>{{ $r->produk->nama_produk }}</b></td>
+                            <td><b>{{ $r->produk->nama_produk ?? '-' }}</b></td>
                             <td>
                                 <span class="badge badge-red">
-                                    {{ number_format($r->jumlah_produksi) }} kg
+                                    {{ number_format($r->jumlah_keputusan) }}
                                 </span>
+                            </td>
+                            <td>
+                                @if($r->pakai_saran)
+                                    <span class="badge badge-green">Pakai Saran</span>
+                                @else
+                                    <span class="badge badge-yellow">Manual</span>
+                                @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="2" style="text-align:center;color:#9ca3af;padding:18px;">
-                                Belum ada saran produksi untuk hari ini.
+                            <td colspan="3" style="text-align:center;color:#9ca3af;padding:18px;">
+                                Belum ada keputusan produksi untuk hari ini.
                             </td>
                         </tr>
                     @endforelse

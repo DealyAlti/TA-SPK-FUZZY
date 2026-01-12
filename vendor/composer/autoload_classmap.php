@@ -41,6 +41,7 @@ return array(
     'App\\Http\\Middleware\\VerifyCsrfToken' => $baseDir . '/app/Http/Middleware/VerifyCsrfToken.php',
     'App\\Models\\DataTraining' => $baseDir . '/app/Models/DataTraining.php',
     'App\\Models\\HasilPrediksi' => $baseDir . '/app/Models/HasilPrediksi.php',
+    'App\\Models\\HasilPrediksiDetail' => $baseDir . '/app/Models/HasilPrediksiDetail.php',
     'App\\Models\\Kategori' => $baseDir . '/app/Models/Kategori.php',
     'App\\Models\\Produk' => $baseDir . '/app/Models/Produk.php',
     'App\\Models\\TrainingHarian' => $baseDir . '/app/Models/TrainingHarian.php',

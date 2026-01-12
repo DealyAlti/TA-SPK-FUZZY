@@ -262,9 +262,7 @@
 					</div>
 
 					<div class="form-actions">
-						<a href="{{ route('prediksi.riwayat') }}" class="btn btn-back">
-							<i class="fa fa-arrow-left"></i> Kembali
-						</a>
+
 
 						{{-- BUTTON BUKAN SUBMIT (biar lewat SweetAlert) --}}
 						<button type="button" onclick="confirmUpdate()" class="btn btn-save">

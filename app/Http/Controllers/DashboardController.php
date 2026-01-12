@@ -6,6 +6,7 @@ use App\Models\Produk;
 use App\Models\Kategori;
 use App\Models\DataTraining;
 use App\Models\HasilPrediksi;
+use App\Models\KeputusanProduksi;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -21,6 +22,8 @@ class DashboardController extends Controller
         // =========================
         if ((int) $user->level === 0) {
 
+            $tz = 'Asia/Jakarta';
+
             $totalProduk   = Produk::count();
             $totalKategori = Kategori::count();
             $totalTraining = DataTraining::count();
@@ -35,13 +38,33 @@ class DashboardController extends Controller
             // status hari ini: apakah sudah ada prediksi/saran
             $hasPrediksiToday = HasilPrediksi::whereDate('tanggal', $today)->exists();
 
-            // checklist
+            // =========================
+            // ✅ KEPUTUSAN PRODUKSI (BARU)
+            // =========================
+            $hasKeputusanToday = KeputusanProduksi::whereDate('tanggal', $today)->exists();
+
+            $now   = Carbon::now($tz);
+            $limit = Carbon::parse($today . ' 09:00:00', $tz);
+
+            $minutesToDeadline = $now->diffInMinutes($limit, false); // bisa negatif kalau lewat
+            $isAfterDeadline   = $now->gt($limit);
+            $isNearDeadline    = (!$isAfterDeadline && $minutesToDeadline <= 30); // <= 30 menit
+
+            // checklist (ditambah keputusan)
             $checklist = [
                 [
                     'label' => 'Buat saran produksi hari ini',
                     'done'  => $hasPrediksiToday,
                     'hint'  => $hasPrediksiToday ? 'Saran produksi tersedia' : 'Belum ada saran hari ini',
                     'url'   => route('prediksi.index'),
+                ],
+                [
+                    'label' => 'Kirim keputusan produksi hari ini',
+                    'done'  => $hasKeputusanToday,
+                    'hint'  => $hasKeputusanToday
+                        ? 'Keputusan sudah dikirim'
+                        : ($isAfterDeadline ? 'Lewat batas 09:00 (belum ada keputusan)' : 'Belum ada keputusan hari ini'),
+                    'url'   => route('keputusan.index', ['tanggal' => $today]),
                 ],
                 [
                     'label' => 'Pastikan data training terbaru sudah lengkap',
@@ -51,15 +74,43 @@ class DashboardController extends Controller
                 ],
             ];
 
-            // warnings
+            // warnings (ditambah keputusan)
             $warnings = [];
+
+            // warning saran
             if (!$hasPrediksiToday) {
                 $warnings[] = [
                     'title' => 'Saran produksi hari ini belum dibuat',
-                    'text'  => 'Buat saran produksi untuk membantu menentukan jumlah produksi hari ini.',
+                    'text'  => 'Buat saran produksi agar bisa menentukan jumlah produksi hari ini.',
                     'type'  => 'warn',
                     'url'   => route('prediksi.index'),
                 ];
+            }
+
+            // warning keputusan
+            if (!$hasKeputusanToday) {
+                if ($isAfterDeadline) {
+                    $warnings[] = [
+                        'title' => 'Keputusan produksi belum dikirim (lewat batas 09:00 WIB)',
+                        'text'  => 'Keputusan belum dibuat. Sistem terkunci setelah jam 09:00.',
+                        'type'  => 'danger',
+                        'url'   => route('keputusan.index', ['tanggal' => $today]),
+                    ];
+                } elseif ($isNearDeadline) {
+                    $warnings[] = [
+                        'title' => 'Batas keputusan produksi hampir habis',
+                        'text'  => 'Segera kirim keputusan sebelum jam 09:00 WIB.',
+                        'type'  => 'warn',
+                        'url'   => route('keputusan.index', ['tanggal' => $today]),
+                    ];
+                } else {
+                    $warnings[] = [
+                        'title' => 'Keputusan produksi hari ini belum dikirim',
+                        'text'  => 'Setelah saran dibuat, kirim keputusan produksi untuk dipakai kepala produksi.',
+                        'type'  => 'warn',
+                        'url'   => route('keputusan.index', ['tanggal' => $today]),
+                    ];
+                }
             }
 
             // stok terbaru (pakai DataTraining)
@@ -82,32 +133,22 @@ class DashboardController extends Controller
 
         // =========================
         // KEPALA PRODUKSI (level 1)
-        // Hanya lihat prediksi/saran (tanpa hasil_aktual)
+        // Fokus: Keputusan Produksi
         // =========================
         if ((int) $user->level === 1) {
 
-            // Prediksi hari ini (untuk tabel atas)
-            $prediksiHariIni = HasilPrediksi::with('produk')
+            $keputusanHariIni = KeputusanProduksi::with('produk')
                 ->whereDate('tanggal', $today)
-                ->orderBy('id_hasil_prediksi', 'desc')
+                ->orderBy('id_produk', 'asc')
                 ->get();
 
-            // Prediksi terbaru (riwayat singkat di bawah)
-            $latestPrediksi = HasilPrediksi::with('produk')
-                ->orderBy('tanggal', 'desc')
-                ->orderBy('id_hasil_prediksi', 'desc')
-                ->limit(10)
-                ->get();
-
-            // KPI sederhana
-            $totalPrediksiHariIni = $prediksiHariIni->count();
-            $totalPrediksi        = HasilPrediksi::count();
+            $totalKeputusanHariIni = $keputusanHariIni->count();
+            $totalKeputusan        = KeputusanProduksi::count();
 
             return view('dashboard.kepala_produksi', compact(
-                'latestPrediksi',
-                'prediksiHariIni',
-                'totalPrediksiHariIni',
-                'totalPrediksi'
+                'keputusanHariIni',
+                'totalKeputusanHariIni',
+                'totalKeputusan'
             ));
         }
 

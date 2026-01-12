@@ -723,6 +723,7 @@ class ComposerStaticInit0fe0cdba6485775d2d59521068fae518
         'App\\Http\\Middleware\\VerifyCsrfToken' => __DIR__ . '/../..' . '/app/Http/Middleware/VerifyCsrfToken.php',
         'App\\Models\\DataTraining' => __DIR__ . '/../..' . '/app/Models/DataTraining.php',
         'App\\Models\\HasilPrediksi' => __DIR__ . '/../..' . '/app/Models/HasilPrediksi.php',
+        'App\\Models\\HasilPrediksiDetail' => __DIR__ . '/../..' . '/app/Models/HasilPrediksiDetail.php',
         'App\\Models\\Kategori' => __DIR__ . '/../..' . '/app/Models/Kategori.php',
         'App\\Models\\Produk' => __DIR__ . '/../..' . '/app/Models/Produk.php',
         'App\\Models\\TrainingHarian' => __DIR__ . '/../..' . '/app/Models/TrainingHarian.php',

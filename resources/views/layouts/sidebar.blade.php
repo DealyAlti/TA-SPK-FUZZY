@@ -76,6 +76,13 @@
                     </a>
                 </li>
 
+                <li class="{{ request()->routeIs('keputusan.*') ? 'active' : '' }}">
+                    <a href="{{ route('keputusan.index') }}">
+                        <i class="fa fa-check-square"></i>
+                        <span>Keputusan Produksi</span>
+                    </a>
+                </li>
+
 
                 <li class="header">USER</li>
 
@@ -91,16 +98,14 @@
             {{-- ================= KEPALA PRODUKSI (LEVEL 1) ================= --}}
             @elseif(auth()->user()->level == 1)
 
-                <li class="header">FUZZY TSUKAMOTO</li>
+            <li class="header">FUZZY TSUKAMOTO</li>
 
-                <li class="{{ request()->routeIs('prediksi.riwayat*','prediksi.detail*','prediksi.hasil') ? 'active' : '' }}">
-                    <a href="{{ route('prediksi.riwayat') }}">
-                        <i class="fa fa-check-circle"></i>
-                        <span>Riwayat Perhitungan</span>
-                    </a>
-                </li>
-
-
+            <li class="{{ request()->routeIs('keputusan.lihat') ? 'active' : '' }}">
+                <a href="{{ route('keputusan.lihat') }}">
+                    <i class="fa fa-clipboard"></i>
+                    <span>Keputusan Produksi</span>
+                </a>
+            </li>
 
             {{-- ================= ADMIN (LEVEL 2) ================= --}}
             @elseif(auth()->user()->level == 2)
