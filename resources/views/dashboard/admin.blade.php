@@ -85,46 +85,7 @@
         </div>
     </div>
 
-    <div class="section">
-        <div class="head">
-            <h3><i class="fa fa-clock-o"></i> Training Harian Terbaru</h3>
-            <a href="{{ route('training.harian.index') }}" class="btn-solid btn-outline" style="padding:8px 12px!important;">
-                <i class="fa fa-arrow-right"></i> Ke Training Harian
-            </a>
-        </div>
-        <div class="body">
-            <div class="table-responsive">
-                <table class="table-modern">
-                    <thead>
-                        <tr>
-                            <th>Tanggal</th>
-                            <th>Produk</th>
-                            <th>Penjualan</th>
-                            <th>Stok</th>
-                            <th>Hasil Produksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @forelse($latestTraining ?? [] as $t)
-                        <tr>
-                            <td>{{ \Carbon\Carbon::parse($t->tanggal)->format('d/m/Y') }}</td>
-                            <td><b>{{ $t->produk->nama_produk ?? '-' }}</b></td>
-                            <td>{{ number_format($t->penjualan) }} kg</td>
-                            <td>{{ number_format($t->stok_barang_jadi) }} kg</td>
-                            <td>{{ number_format($t->hasil_produksi) }} kg</td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" style="text-align:center;color:#9ca3af;padding:18px;">
-                                Belum ada data training harian.
-                            </td>
-                        </tr>
-                    @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    {{-- ✅ SECTION "Training Harian Terbaru" DIHAPUS --}}
 
 </div>
 @endsection

@@ -108,46 +108,5 @@
         </div>
     </div>
 
-    <div class="section">
-        <div class="head">
-            <h3><i class="fa fa-history"></i> Saran Produksi Terbaru</h3>
-            <a href="{{ route('prediksi.riwayat') }}" class="btn-solid btn-outline" style="padding:8px 12px!important;">
-                <i class="fa fa-arrow-right"></i> Ke Riwayat
-            </a>
-        </div>
-        <div class="body">
-            <div class="table-responsive">
-                <table class="table-modern">
-                    <thead>
-                        <tr>
-                            <th>Tanggal</th>
-                            <th>Produk</th>
-                            <th>Saran Produksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @forelse($latestPrediksi as $p)
-                        <tr>
-                            <td>{{ \Carbon\Carbon::parse($p->tanggal)->format('d/m/Y') }}</td>
-                            <td><b>{{ $p->produk->nama_produk }}</b></td>
-                            <td>
-                                <span class="badge badge-red">
-                                    {{ number_format($p->jumlah_produksi) }} kg
-                                </span>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="3" style="text-align:center;color:#9ca3af;padding:18px;">
-                                Belum ada data saran produksi.
-                            </td>
-                        </tr>
-                    @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
 </div>
 @endsection

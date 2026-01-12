@@ -1,7 +1,7 @@
 <header class="main-header">
         @php
             $roles = [
-                0 => 'Owner',
+                0 => 'Direktur Utama',
                 1 => 'Kepala Produksi',
                 2 => 'Admin',
             ];

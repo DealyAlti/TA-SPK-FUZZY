@@ -28,7 +28,7 @@ class UserController extends Controller
             ->addIndexColumn()
             ->editColumn('level', function ($user) {
                 return match ((int) $user->level) {
-                    0 => 'Owner',
+                    0 => 'Direktur Utama',
                     1 => 'Kepala Produksi',
                     2 => 'Admin',
                     default => 'Tidak Diketahui',

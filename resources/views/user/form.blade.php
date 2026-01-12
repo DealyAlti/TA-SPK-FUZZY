@@ -68,7 +68,7 @@
                                 oninvalid="this.setCustomValidity('Silahkan pilih hak akses.')"
                                 oninput="this.setCustomValidity('')">
                                 <option value="">-- Pilih Hak Akses --</option>
-                                <option value="0">Owner</option>
+                                <option value="0">Direktur Utama</option>
                                 <option value="1">Kepala Produksi</option>
                                 <option value="2">Admin</option>
                             </select>

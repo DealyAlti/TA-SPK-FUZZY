@@ -60,7 +60,7 @@ class User extends Authenticatable
     public function getRoleNameAttribute()
     {
         return match ((int) $this->level) {
-            0 => 'Owner',
+            0 => 'Direktur Utama',
             1 => 'Kepala Produksi',
             2 => 'Admin',
             default => 'Tidak Diketahui',
